@@ -1,0 +1,35 @@
+version: "3.8"
+services:
+  messaging-service:
+    build: .
+    ports:
+      - "3001:3000"
+    depends_on:
+      - mysql
+      - rabbitmq
+    env_file:
+      - .env
+    platform: linux/arm64
+
+  mysql:
+    image: mysql:8.0
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    platform: linux/arm64
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    env_file:
+      - .env
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    platform: linux/arm64
+
+volumes:
+  mysql_data:

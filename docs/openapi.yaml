@@ -1,0 +1,79 @@
+openapi: 3.1.0
+info:
+  title: Messaging Service API
+  version: "1.0"
+servers:
+  - url: http://localhost:3000
+paths:
+  /messages:
+    post:
+      summary: Send a message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageRequest"
+      responses:
+        "200":
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "400":
+          description: Bad Request
+  /chats/{chatId}/messages:
+    get:
+      summary: Get chat messages
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+components:
+  schemas:
+    SendMessageRequest:
+      type: object
+      properties:
+        chatId:
+          type: integer
+        senderId:
+          type: integer
+        content:
+          type: string
+      required:
+        - chatId
+        - senderId
+        - content
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+        chatId:
+          type: integer
+        senderId:
+          type: integer
+        content:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+            - sent
+            - delivered
+            - read
+            - failed
