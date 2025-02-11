@@ -12,11 +12,11 @@ import (
 )
 
 type Handler struct {
-	MessageService application.MessageService
+	messageService application.MessageService
 }
 
 func NewHandler(msgService application.MessageService) *Handler {
-	return &Handler{MessageService: msgService}
+	return &Handler{messageService: msgService}
 }
 
 type SendMessageRequest struct {
@@ -37,7 +37,7 @@ func (h *Handler) SendMessage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	msg, err := h.MessageService.SendMessage(r.Context(), req.ChatID, req.SenderID, req.Content)
+	msg, err := h.messageService.SendMessage(r.Context(), req.ChatID, req.SenderID, req.Content)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -54,7 +54,7 @@ func (h *Handler) GetChatMessages(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid chatId", http.StatusBadRequest)
 		return
 	}
-	messages, err := h.MessageService.GetMessages(r.Context(), chatID)
+	messages, err := h.messageService.GetMessages(r.Context(), chatID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -71,7 +71,7 @@ func (h *Handler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid userId", http.StatusBadRequest)
 		return
 	}
-	chats, err := h.MessageService.ListChatsForUser(r.Context(), userID)
+	chats, err := h.messageService.ListChatsForUser(r.Context(), userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -104,7 +104,7 @@ func (h *Handler) UpdateMessageStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.MessageService.UpdateMessageStatus(r.Context(), messageID, newStatus); err != nil {
+	if err := h.messageService.UpdateMessageStatus(r.Context(), messageID, newStatus); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
