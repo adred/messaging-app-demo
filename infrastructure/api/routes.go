@@ -5,12 +5,14 @@ import (
 	"net/http"
 	"time"
 
+	"messaging-app/config"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/httprate"
 )
 
 // NewRouter sets up API routes.
-func NewRouter(handler *Handler) *chi.Mux {
+func NewRouter(handler *Handler, conf *config.Config) *chi.Mux {
 	r := chi.NewRouter()
 
 	// Register Swagger/OpenAPI routes without any authentication.
@@ -23,8 +25,8 @@ func NewRouter(handler *Handler) *chi.Mux {
 
 	// Create a route group for API endpoints that require basic auth and rate limiting.
 	r.Group(func(api chi.Router) {
-		api.Use(middleware.BasicAuthMiddleware("red", "abc123"))
-		api.Use(httprate.LimitByIP(100, time.Minute))
+		api.Use(middleware.BasicAuthMiddleware(conf.AuthUsername, conf.AuthPassword))
+		api.Use(httprate.LimitByIP(conf.RateLimit, time.Minute))
 
 		api.Post("/messages", handler.SendMessage)
 		api.Get("/chats/{chatId}/messages", handler.GetChatMessages)

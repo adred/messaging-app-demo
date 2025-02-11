@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"messaging-app/config"
 )
 
 func TestRateLimitingIntegration(t *testing.T) {
@@ -12,8 +14,17 @@ func TestRateLimitingIntegration(t *testing.T) {
 	ds := &dummyService{}
 	// Create the API handler using the dummy service.
 	handler := NewHandler(ds)
+
+	// Create a dummy configuration with auth and rate limit settings.
+	testConfig := &config.Config{
+		AuthUsername: "red",
+		AuthPassword: "abc123",
+		RateLimit:    100,
+		HTTPPort:     "3000",
+	}
+
 	// Create the router using your actual NewRouter function.
-	router := NewRouter(handler)
+	router := NewRouter(handler, testConfig)
 
 	// Create an HTTP test server with the router.
 	ts := httptest.NewServer(router)

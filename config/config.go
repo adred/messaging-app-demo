@@ -7,6 +7,9 @@ type Config struct {
 	RabbitMQDSN   string `envconfig:"RABBITMQ_DSN"`
 	RabbitMQQueue string `envconfig:"RABBITMQ_QUEUE"`
 	HTTPPort      string `envconfig:"HTTP_PORT"`
+	AuthUsername  string `envconfig:"AUTH_USERNAME"`
+	AuthPassword  string `envconfig:"AUTH_PASSWORD"`
+	RateLimit     int    `envconfig:"RATE_LIMIT"`
 }
 
 // LoadConfig processes environment variables into a Config struct.
