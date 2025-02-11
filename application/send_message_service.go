@@ -3,10 +3,13 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"log"
 	"time"
 
 	"messaging-app/domain"
+	"messaging-app/infrastructure/mq"
 	"messaging-app/infrastructure/repository"
 )
 
@@ -20,13 +23,15 @@ type MessageService interface {
 type messageService struct {
 	messageRepo repository.MessageRepository
 	chatRepo    repository.ChatRepository
+	rabbitMQ    *mq.RabbitMQ
 }
 
 // NewMessageService creates a new instance of MessageService.
-func NewMessageService(messageRepo repository.MessageRepository, chatRepo repository.ChatRepository) MessageService {
+func NewMessageService(rabbitMQ *mq.RabbitMQ, messageRepo repository.MessageRepository, chatRepo repository.ChatRepository) MessageService {
 	return &messageService{
 		messageRepo: messageRepo,
 		chatRepo:    chatRepo,
+		rabbitMQ:    rabbitMQ,
 	}
 }
 
@@ -46,7 +51,19 @@ func (s *messageService) SendMessage(ctx context.Context, chatID, senderID int64
 		Timestamp: time.Now(),
 		Status:    domain.MessageStatusSent,
 	}
-	return s.messageRepo.CreateMessage(ctx, msg)
+	createdMsg, err := s.messageRepo.CreateMessage(ctx, msg)
+	if err != nil {
+		return nil, err
+	}
+	// Optionally, publish the message event asynchronously.
+	go func(m *domain.Message) {
+		eventData, _ := json.Marshal(m)
+		if err := s.rabbitMQ.PublishMessage(eventData); err != nil {
+			// Log error
+			log.Printf("failed to publish message event: %v", err)
+		}
+	}(createdMsg)
+	return createdMsg, nil
 }
 
 func (s *messageService) GetMessages(ctx context.Context, chatID int64) ([]*domain.Message, error) {

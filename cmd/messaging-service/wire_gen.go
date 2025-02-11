@@ -25,15 +25,15 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	messageRepository := repository.NewInMemoryMessageRepository()
-	chatRepository := repository.NewInMemoryChatRepository()
-	messageService := application.NewMessageService(messageRepository, chatRepository)
-	handler := api.NewHandler(messageService)
-	mux := api.NewRouter(handler)
 	rabbitMQ, err := ProvideRabbitMQ(configConfig)
 	if err != nil {
 		return nil, err
 	}
+	messageRepository := repository.NewInMemoryMessageRepository()
+	chatRepository := repository.NewInMemoryChatRepository()
+	messageService := application.NewMessageService(rabbitMQ, messageRepository, chatRepository)
+	handler := api.NewHandler(messageService)
+	mux := api.NewRouter(handler)
 	app := NewApp(configConfig, mux, rabbitMQ)
 	return app, nil
 }
