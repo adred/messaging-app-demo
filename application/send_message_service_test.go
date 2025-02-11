@@ -152,7 +152,6 @@ func TestUpdateMessageStatus_NonExistent(t *testing.T) {
 		t.Error("expected error when updating non-existent message, got nil")
 	}
 	if err.Error() != "message does not exist" {
-		// Depending on your implementation, error text may vary.
 		t.Logf("received expected error: %v", err)
 	}
 }
