@@ -2,7 +2,7 @@ package domain
 
 import "time"
 
-// MessageStatus defines the possible statuses for a message.
+// MessageStatus defines the status of a message.
 type MessageStatus string
 
 const (
@@ -14,10 +14,10 @@ const (
 
 // Message represents a chat message.
 type Message struct {
-	ID        int64         `db:"id" json:"id"`
-	ChatID    int64         `db:"chat_id" json:"chatId"`
-	SenderID  int64         `db:"sender_id" json:"senderId"`
-	Content   string        `db:"content" json:"content"`
-	Timestamp time.Time     `db:"timestamp" json:"timestamp"`
-	Status    MessageStatus `db:"status" json:"status"`
+	ID        int64         `json:"id"`
+	ChatID    int64         `json:"chatId"`
+	SenderID  int64         `json:"senderId"`
+	Content   string        `json:"content"`
+	Timestamp time.Time     `json:"timestamp"`
+	Status    MessageStatus `json:"status"`
 }

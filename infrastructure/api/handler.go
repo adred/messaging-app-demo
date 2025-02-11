@@ -10,19 +10,14 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// Handler holds the application services needed by the HTTP endpoints.
 type Handler struct {
 	MessageService application.MessageService
 }
 
-// NewHandler is a constructor for Handler.
 func NewHandler(msgService application.MessageService) *Handler {
-	return &Handler{
-		MessageService: msgService,
-	}
+	return &Handler{MessageService: msgService}
 }
 
-// SendMessageRequest is the payload for sending a message.
 type SendMessageRequest struct {
 	ChatID   int64  `json:"chatId"`
 	SenderID int64  `json:"senderId"`
@@ -60,4 +55,21 @@ func (h *Handler) GetChatMessages(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(messages)
+}
+
+// GetUserChats handles GET /users/{userId}/chats.
+func (h *Handler) GetUserChats(w http.ResponseWriter, r *http.Request) {
+	userIDStr := chi.URLParam(r, "userId")
+	userID, err := strconv.ParseInt(userIDStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid userId", http.StatusBadRequest)
+		return
+	}
+	chats, err := h.MessageService.ListChatsForUser(r.Context(), userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(chats)
 }

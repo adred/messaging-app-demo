@@ -7,41 +7,34 @@
 package main
 
 import (
-	"github.com/jmoiron/sqlx"
+	"fmt"
 	"messaging-app/application"
 	"messaging-app/config"
 	"messaging-app/infrastructure/api"
 	"messaging-app/infrastructure/mq"
 	"messaging-app/infrastructure/repository"
 	"net/http"
-)
-
-import (
-	_ "github.com/go-sql-driver/mysql"
+	"time"
 )
 
 // Injectors from wire.go:
 
 // InitializeApp sets up and returns an App with all dependencies injected.
 func InitializeApp() (*App, error) {
+	messageRepository := repository.NewInMemoryMessageRepository()
+	chatRepository := repository.NewInMemoryChatRepository()
+	messageService := application.NewMessageService(messageRepository, chatRepository)
+	handler := api.NewHandler(messageService)
+	mux := api.NewRouter(handler)
 	configConfig, err := config.LoadConfig()
 	if err != nil {
 		return nil, err
 	}
-	db, err := ProvideDB(configConfig)
-	if err != nil {
-		return nil, err
-	}
-	messageRepository := repository.NewMessageRepository(db)
-	chatRepository := repository.NewChatRepository(db)
-	messageService := application.NewMessageService(messageRepository, chatRepository)
-	handler := api.NewHandler(messageService)
-	mux := api.NewRouter(handler)
 	rabbitMQ, err := ProvideRabbitMQ(configConfig)
 	if err != nil {
 		return nil, err
 	}
-	app := NewApp(mux, db, rabbitMQ)
+	app := NewApp(mux, rabbitMQ)
 	return app, nil
 }
 
@@ -50,26 +43,29 @@ func InitializeApp() (*App, error) {
 // App aggregates the dependencies needed to run the application.
 type App struct {
 	Router   http.Handler
-	DB       *sqlx.DB
 	RabbitMQ *mq.RabbitMQ
 }
 
-// NewApp is a constructor for App.
-func NewApp(router http.Handler, db *sqlx.DB, rabbitMQ *mq.RabbitMQ) *App {
+// NewApp constructs an App.
+func NewApp(router http.Handler, rabbitMQ *mq.RabbitMQ) *App {
 	return &App{
 		Router:   router,
-		DB:       db,
 		RabbitMQ: rabbitMQ,
 	}
 }
 
-// ProvideDB initializes the database connection.
-func ProvideDB(cfg *config.Config) (*sqlx.DB, error) {
-	return sqlx.Connect("mysql", cfg.DBDSN)
-}
-
 // ProvideRabbitMQ initializes the RabbitMQ connection.
 func ProvideRabbitMQ(cfg *config.Config) (*mq.RabbitMQ, error) {
+	var r *mq.RabbitMQ
+	var err error
 
-	return mq.NewRabbitMQ(cfg.RabbitMQDSN, cfg.RabbitMQQueue)
+	for i := 0; i < 10; i++ {
+		r, err = mq.NewRabbitMQ(cfg.RabbitMQDSN, cfg.RabbitMQQueue)
+		if err == nil {
+			return r, nil
+		}
+		fmt.Printf("Attempt %d: RabbitMQ not ready: %v\n", i+1, err)
+		time.Sleep(5 * time.Second)
+	}
+	return nil, err
 }

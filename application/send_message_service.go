@@ -1,3 +1,4 @@
+// application/send_message_service.go
 package application
 
 import (
@@ -13,12 +14,12 @@ import (
 type MessageService interface {
 	SendMessage(ctx context.Context, chatID, senderID int64, content string) (*domain.Message, error)
 	GetMessages(ctx context.Context, chatID int64) ([]*domain.Message, error)
+	ListChatsForUser(ctx context.Context, userID int64) ([]*domain.Chat, error)
 }
 
 type messageService struct {
 	messageRepo repository.MessageRepository
 	chatRepo    repository.ChatRepository
-	// You can add an MQ publisher here if you want to publish messages asynchronously.
 }
 
 // NewMessageService creates a new instance of MessageService.
@@ -29,18 +30,15 @@ func NewMessageService(messageRepo repository.MessageRepository, chatRepo reposi
 	}
 }
 
-// SendMessage validates and sends a new message.
 func (s *messageService) SendMessage(ctx context.Context, chatID, senderID int64, content string) (*domain.Message, error) {
-	// Validate that the chat exists and that the sender is a participant.
 	chat, err := s.chatRepo.GetChatByID(ctx, chatID)
 	if err != nil {
 		return nil, err
 	}
+	// Ensure the sender is a participant.
 	if chat.Participant1ID != senderID && chat.Participant2ID != senderID {
 		return nil, errors.New("sender is not a participant of the chat")
 	}
-
-	// Create a new message.
 	msg := &domain.Message{
 		ChatID:    chatID,
 		SenderID:  senderID,
@@ -51,7 +49,10 @@ func (s *messageService) SendMessage(ctx context.Context, chatID, senderID int64
 	return s.messageRepo.CreateMessage(ctx, msg)
 }
 
-// GetMessages returns all messages for a given chat.
 func (s *messageService) GetMessages(ctx context.Context, chatID int64) ([]*domain.Message, error) {
 	return s.messageRepo.GetMessagesByChatID(ctx, chatID)
+}
+
+func (s *messageService) ListChatsForUser(ctx context.Context, userID int64) ([]*domain.Chat, error) {
+	return s.chatRepo.GetChatsByUserID(ctx, userID)
 }
