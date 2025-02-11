@@ -15,24 +15,20 @@ import (
 func NewRouter(handler *Handler, conf *config.Config) *chi.Mux {
 	r := chi.NewRouter()
 
+	r.Use(middleware.BasicAuthMiddleware(conf.AuthUsername, conf.AuthPassword))
+	r.Use(httprate.LimitByIP(conf.RateLimit, time.Minute))
+
+	r.Post("/messages", handler.SendMessage)
+	r.Get("/chats/{chatId}/messages", handler.GetChatMessages)
+	r.Get("/users/{userId}/chats", handler.GetUserChats)
+	r.Put("/messages/{messageId}/status", handler.UpdateMessageStatus)
+
 	// Register Swagger/OpenAPI routes without any authentication.
 	r.Get("/docs/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./docs/openapi.yaml")
 	})
 	fs := http.StripPrefix("/openapi/", http.FileServer(http.Dir("./static/swaggerui")))
-	// r.Get("/swagger/*", fs.ServeHTTP)
 	r.Get("/openapi/*", fs.ServeHTTP)
-
-	// Create a route group for API endpoints that require basic auth and rate limiting.
-	r.Group(func(api chi.Router) {
-		api.Use(middleware.BasicAuthMiddleware(conf.AuthUsername, conf.AuthPassword))
-		api.Use(httprate.LimitByIP(conf.RateLimit, time.Minute))
-
-		api.Post("/messages", handler.SendMessage)
-		api.Get("/chats/{chatId}/messages", handler.GetChatMessages)
-		api.Get("/users/{userId}/chats", handler.GetUserChats)
-		api.Put("/messages/{messageId}/status", handler.UpdateMessageStatus)
-	})
 
 	return r
 }
