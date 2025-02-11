@@ -154,7 +154,7 @@ func TestUpdateMessageStatus_NonExistent(t *testing.T) {
 	if apistatus == nil {
 		t.Error("expected error when updating non-existent message, got nil")
 	} else {
-		expected := "unprocessable entity: message does not exist"
+		expected := "not found: message not found"
 		if apistatus.GetMessage() != expected {
 			t.Errorf("expected error %q, got %q", expected, apistatus.GetMessage())
 		}
@@ -203,7 +203,7 @@ func TestSendMessageInvalidChat(t *testing.T) {
 	if apistatus == nil {
 		t.Error("expected error when sending message to non-existent chat, got nil")
 	} else {
-		expected := "unprocessable entity: chat does not exist"
+		expected := "not found: chat not found"
 		if apistatus.GetMessage() != expected {
 			t.Errorf("expected error %q, got %q", expected, apistatus.GetMessage())
 		}

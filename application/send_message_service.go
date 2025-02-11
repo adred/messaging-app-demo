@@ -41,9 +41,9 @@ func (s *messageService) SendMessage(ctx context.Context, chatID, senderID int64
 	}
 
 	// Retrieve the chat; return error if not found.
-	chat, err := s.chatRepo.GetChatByID(ctx, chatID)
-	if err != nil {
-		return nil, apistatus.New("chat does not exist").UnprocessableEntity()
+	chat, as := s.chatRepo.GetChatByID(ctx, chatID)
+	if as != nil {
+		return nil, as
 	}
 
 	// Validate that the sender is part of the chat.
@@ -59,9 +59,9 @@ func (s *messageService) SendMessage(ctx context.Context, chatID, senderID int64
 		Timestamp: time.Now(),
 		Status:    domain.MessageStatusSent,
 	}
-	createdMsg, err := s.messageRepo.CreateMessage(ctx, msg)
-	if err != nil {
-		return nil, err
+	createdMsg, as := s.messageRepo.CreateMessage(ctx, msg)
+	if as != nil {
+		return nil, as
 	}
 
 	// Publish asynchronously.
@@ -86,9 +86,9 @@ func (s *messageService) GetMessages(ctx context.Context, chatID int64) ([]*doma
 		return nil, apistatus.New("unprocessable entity: invalid chatID").UnprocessableEntity()
 	}
 	// Verify that the chat exists.
-	_, err := s.chatRepo.GetChatByID(ctx, chatID)
-	if err != nil {
-		return nil, apistatus.New("unprocessable entity: chat does not exist").UnprocessableEntity()
+	_, as := s.chatRepo.GetChatByID(ctx, chatID)
+	if as != nil {
+		return nil, as
 	}
 	return s.messageRepo.GetMessagesByChatID(ctx, chatID)
 }
@@ -122,9 +122,9 @@ func (s *messageService) UpdateMessageStatus(ctx context.Context, messageID int6
 		return apistatus.New("invalid message status").UnprocessableEntity()
 	}
 	// Check if the message exists.
-	_, err := s.messageRepo.GetMessageByID(ctx, messageID)
-	if err != nil {
-		return apistatus.New("message does not exist").UnprocessableEntity()
+	_, as := s.messageRepo.GetMessageByID(ctx, messageID)
+	if as != nil {
+		return as
 	}
 	return s.messageRepo.UpdateMessageStatus(ctx, messageID, status)
 }
