@@ -19,6 +19,7 @@ func NewRouter(handler *Handler, conf *config.Config) *chi.Mux {
 	r.Use(httprate.LimitByIP(conf.RateLimit, time.Minute))
 
 	r.Post("/messages", handler.SendMessage)
+	r.Post("/chats", handler.CreateChat)
 	r.Get("/chats/{chatId}/messages", handler.GetChatMessages)
 	r.Get("/users/{userId}/chats", handler.GetUserChats)
 	r.Put("/messages/{messageId}/status", handler.UpdateMessageStatus)

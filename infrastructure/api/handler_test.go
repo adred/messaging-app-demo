@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -14,11 +16,15 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// dummyService implements the application.MessageService interface for testing.
+// dummyService is a dummy implementation of application.MessageService for testing.
 type dummyService struct{}
 
+// SendMessage returns a dummy message if the chat exists (chatID == 1) and returns an error otherwise.
 func (s *dummyService) SendMessage(ctx context.Context, chatID, senderID int64, content string) (*domain.Message, error) {
-	// Return a dummy message with a generated ID.
+	// For testing, assume that only chat with ID 1 exists.
+	if chatID != 1 {
+		return nil, errors.New("chat does not exist")
+	}
 	return &domain.Message{
 		ID:        1,
 		ChatID:    chatID,
@@ -29,8 +35,8 @@ func (s *dummyService) SendMessage(ctx context.Context, chatID, senderID int64, 
 	}, nil
 }
 
+// GetMessages returns a dummy list of two messages.
 func (s *dummyService) GetMessages(ctx context.Context, chatID int64) ([]*domain.Message, error) {
-	// Return a dummy list of two messages.
 	return []*domain.Message{
 		{
 			ID:        1,
@@ -51,43 +57,95 @@ func (s *dummyService) GetMessages(ctx context.Context, chatID int64) ([]*domain
 	}, nil
 }
 
+// ListChatsForUser returns a dummy chat list containing one chat.
 func (s *dummyService) ListChatsForUser(ctx context.Context, userID int64) ([]*domain.Chat, error) {
-	// Return a dummy chat list containing one chat.
 	return []*domain.Chat{
 		{
 			ID:             1,
 			Participant1ID: userID,
 			Participant2ID: 2,
-			Metadata:       "Test chat between user 1 and user 2",
+			Metadata:       "Test chat between user " + strconv.FormatInt(userID, 10) + " and user 2",
 			CreatedAt:      time.Now(),
 		},
 	}, nil
 }
 
+// UpdateMessageStatus simulates a successful status update.
 func (s *dummyService) UpdateMessageStatus(ctx context.Context, messageID int64, status domain.MessageStatus) error {
-	// For testing, simply return nil (i.e. success).
 	return nil
 }
 
+// CreateChat simulates creating a chat.
+// It returns an error if the two participant IDs are the same.
+// Otherwise, it returns a dummy chat with ID 1.
+func (s *dummyService) CreateChat(ctx context.Context, participant1ID, participant2ID int64) (*domain.Chat, error) {
+	if participant1ID == participant2ID {
+		return nil, errors.New("participants must be different")
+	}
+	// For testing, return a dummy chat with ID 1.
+	return &domain.Chat{
+		ID:             1,
+		Participant1ID: participant1ID,
+		Participant2ID: participant2ID,
+		Metadata:       "Test Chat",
+		CreatedAt:      time.Now(),
+	}, nil
+}
+
+// setupTestHandler creates an API handler using the dummyService.
 func setupTestHandler() *Handler {
 	svc := &dummyService{}
 	return NewHandler(svc)
 }
 
+// newChiContext helps to set URL parameters in the request context.
 func newChiContext(paramKey, paramValue string) *chi.Context {
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add(paramKey, paramValue)
 	return rctx
 }
 
-func TestSendMessage(t *testing.T) {
+//
+// Tests for the API endpoints
+//
+
+func TestCreateChat(t *testing.T) {
 	handler := setupTestHandler()
 
-	// Prepare the request.
+	// Prepare the request payload to create a chat.
+	reqBody := `{"participant1Id": 1, "participant2Id": 2}`
+	req := httptest.NewRequest("POST", "/chats", bytes.NewBufferString(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	// Assume that CreateChat endpoint is defined on handler.
+	// Call the CreateChat handler.
+	handler.CreateChat(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status code 200, got %d", rr.Code)
+	}
+
+	var chat domain.Chat
+	if err := json.NewDecoder(rr.Body).Decode(&chat); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if chat.ID == 0 {
+		t.Error("expected non-zero chat ID")
+	}
+	if chat.Participant1ID != 1 || chat.Participant2ID != 2 {
+		t.Errorf("unexpected chat participants: %+v", chat)
+	}
+}
+
+func TestSendMessage_ValidChat(t *testing.T) {
+	handler := setupTestHandler()
+
+	// Prepare the request for sending a message using an existing chat (chatID == 1).
 	reqBody := `{"chatId": 1, "senderId": 1, "content": "Hello, test message."}`
 	req := httptest.NewRequest("POST", "/messages", bytes.NewBufferString(reqBody))
 	req.Header.Set("Content-Type", "application/json")
-	// Create a ResponseRecorder to record the response.
 	rr := httptest.NewRecorder()
 
 	handler.SendMessage(rr, req)
@@ -106,12 +164,27 @@ func TestSendMessage(t *testing.T) {
 	}
 }
 
+func TestSendMessage_InvalidChat(t *testing.T) {
+	handler := setupTestHandler()
+
+	// Prepare a request for sending a message to a non-existent chat (chatID != 1).
+	reqBody := `{"chatId": 999, "senderId": 1, "content": "This should fail."}`
+	req := httptest.NewRequest("POST", "/messages", bytes.NewBufferString(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	handler.SendMessage(rr, req)
+
+	// We expect an error response (HTTP 400) because the chat does not exist.
+	if rr.Code == http.StatusOK {
+		t.Fatalf("expected an error for non-existent chat, but got status 200")
+	}
+}
+
 func TestGetChatMessages(t *testing.T) {
 	handler := setupTestHandler()
 
-	// Create a request for GET /chats/1/messages.
 	req := httptest.NewRequest("GET", "/chats/1/messages", nil)
-	// Set the URL parameter using chi's context.
 	ctx := context.WithValue(req.Context(), chi.RouteCtxKey, newChiContext("chatId", "1"))
 	req = req.WithContext(ctx)
 
@@ -134,7 +207,6 @@ func TestGetChatMessages(t *testing.T) {
 func TestGetUserChats(t *testing.T) {
 	handler := setupTestHandler()
 
-	// Create a request for GET /users/1/chats.
 	req := httptest.NewRequest("GET", "/users/1/chats", nil)
 	ctx := context.WithValue(req.Context(), chi.RouteCtxKey, newChiContext("userId", "1"))
 	req = req.WithContext(ctx)

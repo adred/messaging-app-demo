@@ -5,9 +5,29 @@ info:
 servers:
   - url: http://localhost:3000
 paths:
+  /chats:
+    post:
+      summary: Create a chat
+      description: Create a new chat between two participants.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateChatRequest"
+      responses:
+        "200":
+          description: Chat created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Chat"
+        "400":
+          description: Bad Request
   /messages:
     post:
       summary: Send a message
+      description: Send a message to an existing chat. Returns an error if the chat does not exist.
       requestBody:
         required: true
         content:
@@ -26,6 +46,7 @@ paths:
   /chats/{chatId}/messages:
     get:
       summary: Get chat messages
+      description: Retrieve the list of messages for a given chat.
       parameters:
         - name: chatId
           in: path
@@ -46,6 +67,7 @@ paths:
   /messages/{messageId}/status:
     put:
       summary: Update message status
+      description: Update the status of a message.
       parameters:
         - name: messageId
           in: path
@@ -66,6 +88,7 @@ paths:
   /users/{userId}/chats:
     get:
       summary: List chats for a user
+      description: Retrieve all chats in which the specified user is a participant.
       parameters:
         - name: userId
           in: path
@@ -85,6 +108,16 @@ paths:
           description: Bad Request
 components:
   schemas:
+    CreateChatRequest:
+      type: object
+      properties:
+        participant1Id:
+          type: integer
+        participant2Id:
+          type: integer
+      required:
+        - participant1Id
+        - participant2Id
     SendMessageRequest:
       type: object
       properties:

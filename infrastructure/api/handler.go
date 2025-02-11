@@ -25,6 +25,12 @@ type SendMessageRequest struct {
 	Content  string `json:"content"`
 }
 
+// CreateChatRequest defines the payload to create a chat.
+type CreateChatRequest struct {
+	Participant1ID int64 `json:"participant1Id"`
+	Participant2ID int64 `json:"participant2Id"`
+}
+
 // UpdateStatusRequest is the payload for updating a message status.
 type UpdateStatusRequest struct {
 	Status string `json:"status"`
@@ -44,6 +50,21 @@ func (h *Handler) SendMessage(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(msg)
+}
+
+func (h *Handler) CreateChat(w http.ResponseWriter, r *http.Request) {
+	var req CreateChatRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	chat, err := h.messageService.CreateChat(r.Context(), req.Participant1ID, req.Participant2ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(chat)
 }
 
 // GetChatMessages handles GET /chats/{chatId}/messages.

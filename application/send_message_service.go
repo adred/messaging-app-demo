@@ -17,6 +17,7 @@ type MessageService interface {
 	GetMessages(ctx context.Context, chatID int64) ([]*domain.Message, error)
 	ListChatsForUser(ctx context.Context, userID int64) ([]*domain.Chat, error)
 	UpdateMessageStatus(ctx context.Context, messageID int64, status domain.MessageStatus) error
+	CreateChat(ctx context.Context, participant1ID, participant2ID int64) (*domain.Chat, error)
 }
 
 type messageService struct {
@@ -34,16 +35,25 @@ func NewMessageService(messageRepo repository.MessageRepository, chatRepo reposi
 }
 
 func (s *messageService) SendMessage(ctx context.Context, chatID, senderID int64, content string) (*domain.Message, error) {
+	// Validate that the sender is one of the hardcoded users.
+	if !domain.IsValidUser(senderID) {
+		return nil, errors.New("invalid sender")
+	}
+
+	// Retrieve the chat; return error if not found.
 	chat, err := s.chatRepo.GetChatByID(ctx, chatID)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("chat does not exist")
 	}
+
+	// Validate that the sender is a participant of the chat.
 	if chat.Participant1ID != senderID && chat.Participant2ID != senderID {
 		return nil, errors.New("sender is not a participant of the chat")
 	}
 
+	// Create the message.
 	msg := &domain.Message{
-		ChatID:    chatID,
+		ChatID:    chat.ID,
 		SenderID:  senderID,
 		Content:   content,
 		Timestamp: time.Now(),
@@ -69,6 +79,25 @@ func (s *messageService) SendMessage(ctx context.Context, chatID, senderID int64
 	}(createdMsg)
 
 	return createdMsg, nil
+}
+
+func (s *messageService) CreateChat(ctx context.Context, participant1ID, participant2ID int64) (*domain.Chat, error) {
+	// Validate that both participants are valid.
+	if !domain.IsValidUser(participant1ID) || !domain.IsValidUser(participant2ID) {
+		return nil, errors.New("one or both participants are invalid")
+	}
+	// Ensure the participants are not the same.
+	if participant1ID == participant2ID {
+		return nil, errors.New("participants must be different")
+	}
+
+	newChat := &domain.Chat{
+		Participant1ID: participant1ID,
+		Participant2ID: participant2ID,
+		Metadata:       "Created chat",
+		CreatedAt:      time.Now(),
+	}
+	return s.chatRepo.CreateChat(ctx, newChat)
 }
 
 func (s *messageService) GetMessages(ctx context.Context, chatID int64) ([]*domain.Message, error) {

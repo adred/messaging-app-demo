@@ -35,15 +35,6 @@ func NewInMemoryChatRepository() ChatRepository {
 		chats:  make(map[int64]*domain.Chat),
 		nextID: 1,
 	}
-	// Pre-seed a chat between user 1 and user 2.
-	repo.chats[repo.nextID] = &domain.Chat{
-		ID:             repo.nextID,
-		Participant1ID: 1,
-		Participant2ID: 2,
-		Metadata:       "Seed chat between user 1 and user 2",
-		CreatedAt:      time.Now(),
-	}
-	repo.nextID++
 	return repo
 }
 

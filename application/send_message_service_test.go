@@ -82,7 +82,7 @@ func TestListChatsForUser(t *testing.T) {
 	chatRepo := repository.NewInMemoryChatRepository()
 	ctx := context.Background()
 
-	// Create two additional chats for user 1.
+	// Create two chats for user 1.
 	_, err := chatRepo.CreateChat(ctx, &domain.Chat{
 		Participant1ID: 1,
 		Participant2ID: 2,
@@ -107,8 +107,8 @@ func TestListChatsForUser(t *testing.T) {
 		t.Fatalf("GetChatsByUserID failed: %v", err)
 	}
 
-	// If the repository pre-seeds one chat by default, then creating two more chats should result in 3 chats for user 1.
-	expectedChats := 3
+	// Since we no longer pre-seed any chat, we expect exactly 2 chats for user 1.
+	expectedChats := 2
 	if len(chats) != expectedChats {
 		t.Errorf("expected %d chats for user 1, got %d", expectedChats, len(chats))
 	}
@@ -176,5 +176,49 @@ func TestUpdateMessageStatusDirectly(t *testing.T) {
 	_, err = json.Marshal(updatedMsg)
 	if err != nil {
 		t.Errorf("failed to marshal updated message: %v", err)
+	}
+}
+
+func TestCreateChatAndSendMessage(t *testing.T) {
+	// Create in-memory repositories.
+	msgRepo := repository.NewInMemoryMessageRepository()
+	chatRepo := repository.NewInMemoryChatRepository()
+	rabbitMQ := &dummyRabbitMQ{} // Use your dummy RabbitMQ (defined in main or a dedicated file).
+
+	service := NewMessageService(msgRepo, chatRepo, rabbitMQ)
+	ctx := context.Background()
+
+	// Create a chat.
+	chat, err := service.CreateChat(ctx, 1, 2)
+	if err != nil {
+		t.Fatalf("CreateChat failed: %v", err)
+	}
+	if chat.ID == 0 {
+		t.Error("expected non-zero chat ID")
+	}
+
+	// Send a message using the created chat.
+	msg, err := service.SendMessage(ctx, chat.ID, 1, "Test message in created chat")
+	if err != nil {
+		t.Fatalf("SendMessage failed: %v", err)
+	}
+	if msg.ChatID != chat.ID {
+		t.Errorf("expected chatID %d, got %d", chat.ID, msg.ChatID)
+	}
+}
+
+func TestSendMessageInvalidChat(t *testing.T) {
+	// Create in-memory repositories.
+	msgRepo := repository.NewInMemoryMessageRepository()
+	chatRepo := repository.NewInMemoryChatRepository()
+	rabbitMQ := &dummyRabbitMQ{}
+
+	service := NewMessageService(msgRepo, chatRepo, rabbitMQ)
+	ctx := context.Background()
+
+	// Attempt to send a message to a non-existent chat.
+	_, err := service.SendMessage(ctx, 999, 1, "Test message")
+	if err == nil {
+		t.Error("expected error when sending message to non-existent chat")
 	}
 }

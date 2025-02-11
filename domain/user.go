@@ -13,3 +13,13 @@ var HardcodedUsers = []User{
 	{ID: 3, Name: "Miro"},
 	{ID: 4, Name: "Joann"},
 }
+
+// IsValidUser returns true if the provided userID is found in HardcodedUsers.
+func IsValidUser(userID int64) bool {
+	for _, u := range HardcodedUsers {
+		if u.ID == userID {
+			return true
+		}
+	}
+	return false
+}
