@@ -41,6 +41,48 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Message"
+        "400":
+          description: Bad Request
+  /messages/{messageId}/status:
+    put:
+      summary: Update message status
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStatusRequest"
+      responses:
+        "204":
+          description: Message status updated successfully
+        "400":
+          description: Bad Request
+  /users/{userId}/chats:
+    get:
+      summary: List chats for a user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of chats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Chat"
+        "400":
+          description: Bad Request
 components:
   schemas:
     SendMessageRequest:
@@ -77,3 +119,41 @@ components:
             - delivered
             - read
             - failed
+      required:
+        - id
+        - chatId
+        - senderId
+        - content
+        - timestamp
+        - status
+    UpdateStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - sent
+            - delivered
+            - read
+            - failed
+      required:
+        - status
+    Chat:
+      type: object
+      properties:
+        id:
+          type: integer
+        participant1Id:
+          type: integer
+        participant2Id:
+          type: integer
+        metadata:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - participant1Id
+        - participant2Id
+        - createdAt
