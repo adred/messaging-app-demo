@@ -14,6 +14,7 @@ import (
 	"messaging-app/infrastructure/mq"
 	"messaging-app/infrastructure/repository"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -58,6 +59,10 @@ func NewApp(cfg *config.Config, router http.Handler, rabbitMQ mq.RabbitMQInterfa
 
 // ProvideRabbitMQ initializes the RabbitMQ connection.
 func ProvideRabbitMQ(cfg *config.Config) (mq.RabbitMQInterface, error) {
+
+	if os.Getenv("TEST_MODE") == "true" {
+		return &dummyRabbitMQ{}, nil
+	}
 	var r mq.RabbitMQInterface
 	var err error
 

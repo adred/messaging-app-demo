@@ -6,6 +6,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -36,6 +37,10 @@ func NewApp(cfg *config.Config, router http.Handler, rabbitMQ mq.RabbitMQInterfa
 
 // ProvideRabbitMQ initializes the RabbitMQ connection.
 func ProvideRabbitMQ(cfg *config.Config) (mq.RabbitMQInterface, error) {
+	// If in test mode, return a dummy implementation.
+	if os.Getenv("TEST_MODE") == "true" {
+		return &dummyRabbitMQ{}, nil
+	}
 	var r mq.RabbitMQInterface
 	var err error
 	// Increase to 10 attempts with a 5-second delay between attempts.
