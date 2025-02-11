@@ -13,8 +13,9 @@ func main() {
 	}
 	defer app.RabbitMQ.Close()
 
-	log.Printf("Server starting on port %s", "3000")
-	if err := http.ListenAndServe(":3000", app.Router); err != nil {
+	// Use the HTTP port from the configuration.
+	log.Printf("Server starting on port %s", app.Config.HTTPPort)
+	if err := http.ListenAndServe(":"+app.Config.HTTPPort, app.Router); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
 }

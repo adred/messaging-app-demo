@@ -21,20 +21,20 @@ import (
 
 // InitializeApp sets up and returns an App with all dependencies injected.
 func InitializeApp() (*App, error) {
+	configConfig, err := config.LoadConfig()
+	if err != nil {
+		return nil, err
+	}
 	messageRepository := repository.NewInMemoryMessageRepository()
 	chatRepository := repository.NewInMemoryChatRepository()
 	messageService := application.NewMessageService(messageRepository, chatRepository)
 	handler := api.NewHandler(messageService)
 	mux := api.NewRouter(handler)
-	configConfig, err := config.LoadConfig()
-	if err != nil {
-		return nil, err
-	}
 	rabbitMQ, err := ProvideRabbitMQ(configConfig)
 	if err != nil {
 		return nil, err
 	}
-	app := NewApp(mux, rabbitMQ)
+	app := NewApp(configConfig, mux, rabbitMQ)
 	return app, nil
 }
 
@@ -42,13 +42,15 @@ func InitializeApp() (*App, error) {
 
 // App aggregates the dependencies needed to run the application.
 type App struct {
+	Config   *config.Config
 	Router   http.Handler
 	RabbitMQ *mq.RabbitMQ
 }
 
-// NewApp constructs an App.
-func NewApp(router http.Handler, rabbitMQ *mq.RabbitMQ) *App {
+// NewApp is a constructor for App that requires configuration.
+func NewApp(cfg *config.Config, router http.Handler, rabbitMQ *mq.RabbitMQ) *App {
 	return &App{
+		Config:   cfg,
 		Router:   router,
 		RabbitMQ: rabbitMQ,
 	}
