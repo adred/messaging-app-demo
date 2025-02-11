@@ -117,14 +117,6 @@ func (h *Handler) UpdateMessageStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newStatus := domain.MessageStatus(req.Status)
-	switch newStatus {
-	case domain.MessageStatusDelivered, domain.MessageStatusRead, domain.MessageStatusFailed:
-		// valid statuses
-	default:
-		http.Error(w, "Invalid status value", http.StatusBadRequest)
-		return
-	}
-
 	if err := h.messageService.UpdateMessageStatus(r.Context(), messageID, newStatus); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -20,6 +20,7 @@ type MessageRepository interface {
 	CreateMessage(ctx context.Context, msg *domain.Message) (*domain.Message, error)
 	GetMessagesByChatID(ctx context.Context, chatID int64) ([]*domain.Message, error)
 	UpdateMessageStatus(ctx context.Context, messageID int64, status domain.MessageStatus) error
+	GetMessageByID(ctx context.Context, messageID int64) (*domain.Message, error)
 }
 
 // InMemoryChatRepository implements ChatRepository in memory.
@@ -105,7 +106,6 @@ func (r *InMemoryMessageRepository) GetMessagesByChatID(ctx context.Context, cha
 	return result, nil
 }
 
-// UpdateMessageStatus updates the status of an existing message.
 func (r *InMemoryMessageRepository) UpdateMessageStatus(ctx context.Context, messageID int64, status domain.MessageStatus) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -115,4 +115,14 @@ func (r *InMemoryMessageRepository) UpdateMessageStatus(ctx context.Context, mes
 	}
 	msg.Status = status
 	return nil
+}
+
+func (r *InMemoryMessageRepository) GetMessageByID(ctx context.Context, messageID int64) (*domain.Message, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	msg, exists := r.messages[messageID]
+	if !exists {
+		return nil, errors.New("message not found")
+	}
+	return msg, nil
 }

@@ -46,7 +46,7 @@ func (s *messageService) SendMessage(ctx context.Context, chatID, senderID int64
 		return nil, errors.New("chat does not exist")
 	}
 
-	// Validate that the sender is a participant of the chat.
+	// Validate that the sender is part of the chat.
 	if chat.Participant1ID != senderID && chat.Participant2ID != senderID {
 		return nil, errors.New("sender is not a participant of the chat")
 	}
@@ -81,6 +81,54 @@ func (s *messageService) SendMessage(ctx context.Context, chatID, senderID int64
 	return createdMsg, nil
 }
 
+func (s *messageService) GetMessages(ctx context.Context, chatID int64) ([]*domain.Message, error) {
+	if chatID <= 0 {
+		return nil, errors.New("invalid chatID")
+	}
+	// Verify that the chat exists.
+	_, err := s.chatRepo.GetChatByID(ctx, chatID)
+	if err != nil {
+		return nil, errors.New("chat does not exist")
+	}
+	return s.messageRepo.GetMessagesByChatID(ctx, chatID)
+}
+
+func (s *messageService) ListChatsForUser(ctx context.Context, userID int64) ([]*domain.Chat, error) {
+	if userID <= 0 {
+		return nil, errors.New("invalid userID")
+	}
+	if !domain.IsValidUser(userID) {
+		return nil, errors.New("user does not exist")
+	}
+	chats, err := s.chatRepo.GetChatsByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if len(chats) == 0 {
+		return nil, errors.New("user has no chats")
+	}
+	return chats, nil
+}
+
+func (s *messageService) UpdateMessageStatus(ctx context.Context, messageID int64, status domain.MessageStatus) error {
+	if messageID <= 0 {
+		return errors.New("invalid messageID")
+	}
+	// Validate the status.
+	switch status {
+	case domain.MessageStatusSent, domain.MessageStatusDelivered, domain.MessageStatusRead, domain.MessageStatusFailed:
+		// valid
+	default:
+		return errors.New("invalid message status")
+	}
+	// Check if the message exists.
+	_, err := s.messageRepo.GetMessageByID(ctx, messageID)
+	if err != nil {
+		return errors.New("message does not exist")
+	}
+	return s.messageRepo.UpdateMessageStatus(ctx, messageID, status)
+}
+
 func (s *messageService) CreateChat(ctx context.Context, participant1ID, participant2ID int64) (*domain.Chat, error) {
 	// Validate that both participants are valid.
 	if !domain.IsValidUser(participant1ID) || !domain.IsValidUser(participant2ID) {
@@ -98,16 +146,4 @@ func (s *messageService) CreateChat(ctx context.Context, participant1ID, partici
 		CreatedAt:      time.Now(),
 	}
 	return s.chatRepo.CreateChat(ctx, newChat)
-}
-
-func (s *messageService) GetMessages(ctx context.Context, chatID int64) ([]*domain.Message, error) {
-	return s.messageRepo.GetMessagesByChatID(ctx, chatID)
-}
-
-func (s *messageService) ListChatsForUser(ctx context.Context, userID int64) ([]*domain.Chat, error) {
-	return s.chatRepo.GetChatsByUserID(ctx, userID)
-}
-
-func (s *messageService) UpdateMessageStatus(ctx context.Context, messageID int64, status domain.MessageStatus) error {
-	return s.messageRepo.UpdateMessageStatus(ctx, messageID, status)
 }

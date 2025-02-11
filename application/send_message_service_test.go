@@ -20,13 +20,14 @@ func (d *dummyRabbitMQ) PublishMessage(body []byte) error {
 
 func (d *dummyRabbitMQ) Close() {}
 
+// TestSendMessageAndUpdateStatus tests sending a message and then updating its status.
 func TestSendMessageAndUpdateStatus(t *testing.T) {
 	// Create in-memory repositories.
 	msgRepo := repository.NewInMemoryMessageRepository()
 	chatRepo := repository.NewInMemoryChatRepository()
 
-	// For testing, create a new chat so that SendMessage can succeed.
 	ctx := context.Background()
+	// Create a new chat so that SendMessage can succeed.
 	chat, err := chatRepo.CreateChat(ctx, &domain.Chat{
 		Participant1ID: 1,
 		Participant2ID: 2,
@@ -37,10 +38,7 @@ func TestSendMessageAndUpdateStatus(t *testing.T) {
 		t.Fatalf("failed to create chat: %v", err)
 	}
 
-	// Use dummyRabbitMQ so that we don’t make a real connection.
 	rabbitMQ := &dummyRabbitMQ{}
-
-	// Create the message service.
 	service := NewMessageService(msgRepo, chatRepo, rabbitMQ)
 
 	// Test sending a message.
@@ -76,8 +74,15 @@ func TestSendMessageAndUpdateStatus(t *testing.T) {
 	if updatedMsg.Status != domain.MessageStatusDelivered {
 		t.Errorf("expected message status 'delivered', got %s", updatedMsg.Status)
 	}
+
+	// Optionally, check that JSON marshalling works.
+	_, err = json.Marshal(updatedMsg)
+	if err != nil {
+		t.Errorf("failed to marshal updated message: %v", err)
+	}
 }
 
+// TestListChatsForUser tests ListChatsForUser when chats exist.
 func TestListChatsForUser(t *testing.T) {
 	chatRepo := repository.NewInMemoryChatRepository()
 	ctx := context.Background()
@@ -102,88 +107,61 @@ func TestListChatsForUser(t *testing.T) {
 		t.Fatalf("failed to create chat: %v", err)
 	}
 
-	chats, err := chatRepo.GetChatsByUserID(ctx, 1)
+	// Create a dummy message service that wraps the chatRepo.
+	service := NewMessageService(nil, chatRepo, &dummyRabbitMQ{})
+	chats, err := service.ListChatsForUser(ctx, 1)
 	if err != nil {
-		t.Fatalf("GetChatsByUserID failed: %v", err)
+		t.Fatalf("ListChatsForUser failed: %v", err)
 	}
 
-	// Since we no longer pre-seed any chat, we expect exactly 2 chats for user 1.
+	// Expect exactly 2 chats for user 1.
 	expectedChats := 2
 	if len(chats) != expectedChats {
 		t.Errorf("expected %d chats for user 1, got %d", expectedChats, len(chats))
 	}
 }
 
-func TestUpdateMessageStatusDirectly(t *testing.T) {
-	// Create in-memory repositories.
-	msgRepo := repository.NewInMemoryMessageRepository()
+// TestListChatsForUser_NoChats tests that ListChatsForUser returns an error if the user has no chats.
+func TestListChatsForUser_NoChats(t *testing.T) {
 	chatRepo := repository.NewInMemoryChatRepository()
-
-	// Use dummyRabbitMQ so that we don't make a real connection.
-	rabbitMQ := &dummyRabbitMQ{}
-
-	// Create the message service.
-	service := NewMessageService(msgRepo, chatRepo, rabbitMQ)
 	ctx := context.Background()
 
-	// Create a new chat so that SendMessage can succeed.
-	chat, err := chatRepo.CreateChat(ctx, &domain.Chat{
-		Participant1ID: 1,
-		Participant2ID: 2,
-		Metadata:       "Update Status Test Chat",
-		CreatedAt:      time.Now(),
-	})
-	if err != nil {
-		t.Fatalf("failed to create chat: %v", err)
+	// No chats are created here.
+	service := NewMessageService(nil, chatRepo, &dummyRabbitMQ{})
+	_, err := service.ListChatsForUser(ctx, 1)
+	if err == nil {
+		t.Error("expected error when listing chats for user with no chats, got nil")
 	}
-
-	// Create a message.
-	msg, err := service.SendMessage(ctx, chat.ID, 1, "Message to update")
-	if err != nil {
-		t.Fatalf("SendMessage failed: %v", err)
-	}
-	// Check initial status.
-	if msg.Status != domain.MessageStatusSent {
-		t.Errorf("expected initial status 'sent', got %s", msg.Status)
-	}
-
-	// Update message status to "read".
-	err = service.UpdateMessageStatus(ctx, msg.ID, domain.MessageStatusRead)
-	if err != nil {
-		t.Fatalf("UpdateMessageStatus failed: %v", err)
-	}
-
-	// Retrieve messages for the chat and verify the updated status.
-	messages, err := msgRepo.GetMessagesByChatID(ctx, chat.ID)
-	if err != nil {
-		t.Fatalf("GetMessagesByChatID failed: %v", err)
-	}
-	var updatedMsg *domain.Message
-	for _, m := range messages {
-		if m.ID == msg.ID {
-			updatedMsg = m
-			break
-		}
-	}
-	if updatedMsg == nil {
-		t.Fatal("message not found after update")
-	}
-	if updatedMsg.Status != domain.MessageStatusRead {
-		t.Errorf("expected status 'read', got %s", updatedMsg.Status)
-	}
-
-	// Optionally, check that the JSON marshalling of the updated message works as expected.
-	_, err = json.Marshal(updatedMsg)
-	if err != nil {
-		t.Errorf("failed to marshal updated message: %v", err)
+	if err.Error() != "user has no chats" {
+		t.Logf("received expected error: %v", err)
 	}
 }
 
-func TestCreateChatAndSendMessage(t *testing.T) {
-	// Create in-memory repositories.
+// TestUpdateMessageStatus_NonExistent tests that updating a message that does not exist returns an error.
+func TestUpdateMessageStatus_NonExistent(t *testing.T) {
 	msgRepo := repository.NewInMemoryMessageRepository()
 	chatRepo := repository.NewInMemoryChatRepository()
-	rabbitMQ := &dummyRabbitMQ{} // Use your dummy RabbitMQ (defined in main or a dedicated file).
+	rabbitMQ := &dummyRabbitMQ{}
+
+	service := NewMessageService(msgRepo, chatRepo, rabbitMQ)
+	ctx := context.Background()
+
+	// Attempt to update a message with an ID that doesn't exist.
+	err := service.UpdateMessageStatus(ctx, 999, domain.MessageStatusDelivered)
+	if err == nil {
+		t.Error("expected error when updating non-existent message, got nil")
+	}
+	if err.Error() != "message does not exist" {
+		// Depending on your implementation, error text may vary.
+		t.Logf("received expected error: %v", err)
+	}
+}
+
+// TestCreateChatAndSendMessage tests the full flow: create a chat then send a message.
+func TestCreateChatAndSendMessage(t *testing.T) {
+	msgRepo := repository.NewInMemoryMessageRepository()
+	chatRepo := repository.NewInMemoryChatRepository()
+	rabbitMQ := &dummyRabbitMQ{}
 
 	service := NewMessageService(msgRepo, chatRepo, rabbitMQ)
 	ctx := context.Background()
@@ -207,8 +185,8 @@ func TestCreateChatAndSendMessage(t *testing.T) {
 	}
 }
 
+// TestSendMessageInvalidChat tests that SendMessage returns an error for a non-existent chat.
 func TestSendMessageInvalidChat(t *testing.T) {
-	// Create in-memory repositories.
 	msgRepo := repository.NewInMemoryMessageRepository()
 	chatRepo := repository.NewInMemoryChatRepository()
 	rabbitMQ := &dummyRabbitMQ{}
@@ -216,9 +194,9 @@ func TestSendMessageInvalidChat(t *testing.T) {
 	service := NewMessageService(msgRepo, chatRepo, rabbitMQ)
 	ctx := context.Background()
 
-	// Attempt to send a message to a non-existent chat.
+	// Attempt to send a message to a non-existent chat (ID 999).
 	_, err := service.SendMessage(ctx, 999, 1, "Test message")
 	if err == nil {
-		t.Error("expected error when sending message to non-existent chat")
+		t.Error("expected error when sending message to non-existent chat, got nil")
 	}
 }
