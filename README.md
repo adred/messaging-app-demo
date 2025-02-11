@@ -71,6 +71,12 @@ These features outline how I would finish the project:
 go tests ./...
 ```
 
+### Access the Service
+
+- Messaging API: http://localhost:3000
+- RabbitMQ Management Dashboard: http://localhost:15672
+  (Default credentials: guest / guest)
+
 ## Technical Choices & System Architecture
 
 ### Language & Frameworks
@@ -111,12 +117,6 @@ go tests ./...
 
 - Containerization:
   Docker and Docker Compose ensure a consistent deployment environment across development and production.
-
-## Access the Service
-
-- Messaging API: http://localhost:3000
-- RabbitMQ Management Dashboard: http://localhost:15672
-  (Default credentials: guest / guest)
 
 ## Potential Improvements
 
