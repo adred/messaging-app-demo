@@ -103,6 +103,9 @@ func (r *InMemoryMessageRepository) GetMessagesByChatID(ctx context.Context, cha
 			result = append(result, msg)
 		}
 	}
+	if len(result) == 0 {
+		return nil, apistatus.New("messages not found").NotFound()
+	}
 	return result, nil
 }
 

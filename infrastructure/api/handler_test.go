@@ -124,8 +124,8 @@ func TestCreateChat(t *testing.T) {
 
 	handler.CreateChat(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected status code 200, got %d", rr.Code)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("expected status code %d, got %d", http.StatusCreated, rr.Code)
 	}
 
 	var chat domain.Chat
@@ -152,8 +152,8 @@ func TestSendMessage_ValidChat(t *testing.T) {
 
 	handler.SendMessage(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected status code %d, got %d", http.StatusOK, rr.Code)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("expected status code %d, got %d", http.StatusCreated, rr.Code)
 	}
 
 	var msg domain.Message
@@ -259,8 +259,8 @@ func TestUpdateMessageStatus(t *testing.T) {
 
 	rr := httptest.NewRecorder()
 	handler.UpdateMessageStatus(rr, req)
-	if rr.Code != http.StatusNoContent {
-		t.Fatalf("expected status code %d for valid update, got %d", http.StatusNoContent, rr.Code)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status code %d for valid update, got %d", http.StatusOK, rr.Code)
 	}
 
 	// Error case: non-existent message (ID != 1).
