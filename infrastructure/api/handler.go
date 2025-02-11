@@ -43,9 +43,9 @@ func (h *Handler) SendMessage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	msg, err := h.messageService.SendMessage(r.Context(), req.ChatID, req.SenderID, req.Content)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	msg, apistatus := h.messageService.SendMessage(r.Context(), req.ChatID, req.SenderID, req.Content)
+	if apistatus != nil {
+		http.Error(w, apistatus.GetMessage(), apistatus.GetStatus())
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -58,9 +58,9 @@ func (h *Handler) CreateChat(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	chat, err := h.messageService.CreateChat(r.Context(), req.Participant1ID, req.Participant2ID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	chat, apistatus := h.messageService.CreateChat(r.Context(), req.Participant1ID, req.Participant2ID)
+	if apistatus != nil {
+		http.Error(w, apistatus.GetMessage(), apistatus.GetStatus())
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -75,9 +75,9 @@ func (h *Handler) GetChatMessages(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid chatId", http.StatusBadRequest)
 		return
 	}
-	messages, err := h.messageService.GetMessages(r.Context(), chatID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	messages, apistatus := h.messageService.GetMessages(r.Context(), chatID)
+	if apistatus != nil {
+		http.Error(w, apistatus.GetMessage(), apistatus.GetStatus())
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -92,9 +92,9 @@ func (h *Handler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid userId", http.StatusBadRequest)
 		return
 	}
-	chats, err := h.messageService.ListChatsForUser(r.Context(), userID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	chats, apistatus := h.messageService.ListChatsForUser(r.Context(), userID)
+	if apistatus != nil {
+		http.Error(w, apistatus.GetMessage(), apistatus.GetStatus())
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -117,8 +117,9 @@ func (h *Handler) UpdateMessageStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newStatus := domain.MessageStatus(req.Status)
-	if err := h.messageService.UpdateMessageStatus(r.Context(), messageID, newStatus); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	apistatus := h.messageService.UpdateMessageStatus(r.Context(), messageID, newStatus)
+	if apistatus != nil {
+		http.Error(w, apistatus.GetMessage(), apistatus.GetStatus())
 		return
 	}
 

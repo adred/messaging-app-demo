@@ -28,38 +28,39 @@ func TestSendMessageAndUpdateStatus(t *testing.T) {
 
 	ctx := context.Background()
 	// Create a new chat so that SendMessage can succeed.
-	chat, err := chatRepo.CreateChat(ctx, &domain.Chat{
+	// (Note: repository.CreateChat returns a standard error, so no changes are needed here.)
+	chat, apistatus := chatRepo.CreateChat(ctx, &domain.Chat{
 		Participant1ID: 1,
 		Participant2ID: 2,
 		Metadata:       "Test Chat",
 		CreatedAt:      time.Now(),
 	})
-	if err != nil {
-		t.Fatalf("failed to create chat: %v", err)
+	if apistatus != nil {
+		t.Fatalf("failed to create chat: %v", apistatus.GetError())
 	}
 
 	rabbitMQ := &dummyRabbitMQ{}
 	service := NewMessageService(msgRepo, chatRepo, rabbitMQ)
 
 	// Test sending a message.
-	msg, err := service.SendMessage(ctx, chat.ID, 1, "Hello from test")
-	if err != nil {
-		t.Fatalf("SendMessage failed: %v", err)
+	msg, apistatus := service.SendMessage(ctx, chat.ID, 1, "Hello from test")
+	if apistatus != nil {
+		t.Fatalf("SendMessage failed: %s", apistatus.GetMessage())
 	}
 	if msg.Status != domain.MessageStatusSent {
 		t.Errorf("expected message status 'sent', got %s", msg.Status)
 	}
 
 	// Test updating the message status.
-	err = service.UpdateMessageStatus(ctx, msg.ID, domain.MessageStatusDelivered)
-	if err != nil {
-		t.Fatalf("UpdateMessageStatus failed: %v", err)
+	apistatus = service.UpdateMessageStatus(ctx, msg.ID, domain.MessageStatusDelivered)
+	if apistatus != nil {
+		t.Fatalf("UpdateMessageStatus failed: %s", apistatus.GetMessage())
 	}
 
 	// Verify update.
-	messages, err := msgRepo.GetMessagesByChatID(ctx, chat.ID)
-	if err != nil {
-		t.Fatalf("GetMessagesByChatID failed: %v", err)
+	messages, apistatus := msgRepo.GetMessagesByChatID(ctx, chat.ID)
+	if apistatus != nil {
+		t.Fatalf("GetMessagesByChatID failed: %v", apistatus.GetError())
 	}
 	var updatedMsg *domain.Message
 	for _, m := range messages {
@@ -76,7 +77,7 @@ func TestSendMessageAndUpdateStatus(t *testing.T) {
 	}
 
 	// Optionally, check that JSON marshalling works.
-	_, err = json.Marshal(updatedMsg)
+	_, err := json.Marshal(updatedMsg)
 	if err != nil {
 		t.Errorf("failed to marshal updated message: %v", err)
 	}
@@ -109,9 +110,9 @@ func TestListChatsForUser(t *testing.T) {
 
 	// Create a dummy message service that wraps the chatRepo.
 	service := NewMessageService(nil, chatRepo, &dummyRabbitMQ{})
-	chats, err := service.ListChatsForUser(ctx, 1)
-	if err != nil {
-		t.Fatalf("ListChatsForUser failed: %v", err)
+	chats, apistatus := service.ListChatsForUser(ctx, 1)
+	if apistatus != nil {
+		t.Fatalf("ListChatsForUser failed: %s", apistatus.GetMessage())
 	}
 
 	// Expect exactly 2 chats for user 1.
@@ -128,12 +129,14 @@ func TestListChatsForUser_NoChats(t *testing.T) {
 
 	// No chats are created here.
 	service := NewMessageService(nil, chatRepo, &dummyRabbitMQ{})
-	_, err := service.ListChatsForUser(ctx, 1)
-	if err == nil {
+	_, apistatus := service.ListChatsForUser(ctx, 1)
+	if apistatus == nil {
 		t.Error("expected error when listing chats for user with no chats, got nil")
-	}
-	if err.Error() != "user has no chats" {
-		t.Logf("received expected error: %v", err)
+	} else {
+		expected := "unprocessable entity: user has no chats"
+		if apistatus.GetMessage() != expected {
+			t.Errorf("expected error %q, got %q", expected, apistatus.GetMessage())
+		}
 	}
 }
 
@@ -147,12 +150,14 @@ func TestUpdateMessageStatus_NonExistent(t *testing.T) {
 	ctx := context.Background()
 
 	// Attempt to update a message with an ID that doesn't exist.
-	err := service.UpdateMessageStatus(ctx, 999, domain.MessageStatusDelivered)
-	if err == nil {
+	apistatus := service.UpdateMessageStatus(ctx, 999, domain.MessageStatusDelivered)
+	if apistatus == nil {
 		t.Error("expected error when updating non-existent message, got nil")
-	}
-	if err.Error() != "message does not exist" {
-		t.Logf("received expected error: %v", err)
+	} else {
+		expected := "unprocessable entity: message does not exist"
+		if apistatus.GetMessage() != expected {
+			t.Errorf("expected error %q, got %q", expected, apistatus.GetMessage())
+		}
 	}
 }
 
@@ -166,18 +171,18 @@ func TestCreateChatAndSendMessage(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a chat.
-	chat, err := service.CreateChat(ctx, 1, 2)
-	if err != nil {
-		t.Fatalf("CreateChat failed: %v", err)
+	chat, apistatus := service.CreateChat(ctx, 1, 2)
+	if apistatus != nil {
+		t.Fatalf("CreateChat failed: %s", apistatus.GetMessage())
 	}
 	if chat.ID == 0 {
 		t.Error("expected non-zero chat ID")
 	}
 
 	// Send a message using the created chat.
-	msg, err := service.SendMessage(ctx, chat.ID, 1, "Test message in created chat")
-	if err != nil {
-		t.Fatalf("SendMessage failed: %v", err)
+	msg, apistatus := service.SendMessage(ctx, chat.ID, 1, "Test message in created chat")
+	if apistatus != nil {
+		t.Fatalf("SendMessage failed: %s", apistatus.GetMessage())
 	}
 	if msg.ChatID != chat.ID {
 		t.Errorf("expected chatID %d, got %d", chat.ID, msg.ChatID)
@@ -194,8 +199,13 @@ func TestSendMessageInvalidChat(t *testing.T) {
 	ctx := context.Background()
 
 	// Attempt to send a message to a non-existent chat (ID 999).
-	_, err := service.SendMessage(ctx, 999, 1, "Test message")
-	if err == nil {
+	_, apistatus := service.SendMessage(ctx, 999, 1, "Test message")
+	if apistatus == nil {
 		t.Error("expected error when sending message to non-existent chat, got nil")
+	} else {
+		expected := "unprocessable entity: chat does not exist"
+		if apistatus.GetMessage() != expected {
+			t.Errorf("expected error %q, got %q", expected, apistatus.GetMessage())
+		}
 	}
 }

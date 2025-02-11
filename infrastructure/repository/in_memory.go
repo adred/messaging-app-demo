@@ -2,25 +2,25 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"messaging-app/domain"
+	"messaging-app/pkg/apistatus"
 	"sync"
 	"time"
 )
 
 // ChatRepository defines methods for chat data.
 type ChatRepository interface {
-	CreateChat(ctx context.Context, chat *domain.Chat) (*domain.Chat, error)
-	GetChatByID(ctx context.Context, chatID int64) (*domain.Chat, error)
-	GetChatsByUserID(ctx context.Context, userID int64) ([]*domain.Chat, error)
+	CreateChat(ctx context.Context, chat *domain.Chat) (*domain.Chat, apistatus.Status)
+	GetChatByID(ctx context.Context, chatID int64) (*domain.Chat, apistatus.Status)
+	GetChatsByUserID(ctx context.Context, userID int64) ([]*domain.Chat, apistatus.Status)
 }
 
 // MessageRepository defines methods for message data.
 type MessageRepository interface {
-	CreateMessage(ctx context.Context, msg *domain.Message) (*domain.Message, error)
-	GetMessagesByChatID(ctx context.Context, chatID int64) ([]*domain.Message, error)
-	UpdateMessageStatus(ctx context.Context, messageID int64, status domain.MessageStatus) error
-	GetMessageByID(ctx context.Context, messageID int64) (*domain.Message, error)
+	CreateMessage(ctx context.Context, msg *domain.Message) (*domain.Message, apistatus.Status)
+	GetMessagesByChatID(ctx context.Context, chatID int64) ([]*domain.Message, apistatus.Status)
+	UpdateMessageStatus(ctx context.Context, messageID int64, status domain.MessageStatus) apistatus.Status
+	GetMessageByID(ctx context.Context, messageID int64) (*domain.Message, apistatus.Status)
 }
 
 // InMemoryChatRepository implements ChatRepository in memory.
@@ -39,7 +39,7 @@ func NewInMemoryChatRepository() ChatRepository {
 	return repo
 }
 
-func (r *InMemoryChatRepository) CreateChat(ctx context.Context, chat *domain.Chat) (*domain.Chat, error) {
+func (r *InMemoryChatRepository) CreateChat(ctx context.Context, chat *domain.Chat) (*domain.Chat, apistatus.Status) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	chat.ID = r.nextID
@@ -49,17 +49,17 @@ func (r *InMemoryChatRepository) CreateChat(ctx context.Context, chat *domain.Ch
 	return chat, nil
 }
 
-func (r *InMemoryChatRepository) GetChatByID(ctx context.Context, chatID int64) (*domain.Chat, error) {
+func (r *InMemoryChatRepository) GetChatByID(ctx context.Context, chatID int64) (*domain.Chat, apistatus.Status) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	chat, exists := r.chats[chatID]
 	if !exists {
-		return nil, errors.New("chat not found")
+		return nil, apistatus.New("chat not found").NotFound()
 	}
 	return chat, nil
 }
 
-func (r *InMemoryChatRepository) GetChatsByUserID(ctx context.Context, userID int64) ([]*domain.Chat, error) {
+func (r *InMemoryChatRepository) GetChatsByUserID(ctx context.Context, userID int64) ([]*domain.Chat, apistatus.Status) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	var result []*domain.Chat
@@ -85,7 +85,7 @@ func NewInMemoryMessageRepository() MessageRepository {
 	}
 }
 
-func (r *InMemoryMessageRepository) CreateMessage(ctx context.Context, msg *domain.Message) (*domain.Message, error) {
+func (r *InMemoryMessageRepository) CreateMessage(ctx context.Context, msg *domain.Message) (*domain.Message, apistatus.Status) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	msg.ID = r.nextID
@@ -94,7 +94,7 @@ func (r *InMemoryMessageRepository) CreateMessage(ctx context.Context, msg *doma
 	return msg, nil
 }
 
-func (r *InMemoryMessageRepository) GetMessagesByChatID(ctx context.Context, chatID int64) ([]*domain.Message, error) {
+func (r *InMemoryMessageRepository) GetMessagesByChatID(ctx context.Context, chatID int64) ([]*domain.Message, apistatus.Status) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	var result []*domain.Message
@@ -106,23 +106,23 @@ func (r *InMemoryMessageRepository) GetMessagesByChatID(ctx context.Context, cha
 	return result, nil
 }
 
-func (r *InMemoryMessageRepository) UpdateMessageStatus(ctx context.Context, messageID int64, status domain.MessageStatus) error {
+func (r *InMemoryMessageRepository) UpdateMessageStatus(ctx context.Context, messageID int64, status domain.MessageStatus) apistatus.Status {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	msg, exists := r.messages[messageID]
 	if !exists {
-		return errors.New("message not found")
+		return apistatus.New("message not found").NotFound()
 	}
 	msg.Status = status
 	return nil
 }
 
-func (r *InMemoryMessageRepository) GetMessageByID(ctx context.Context, messageID int64) (*domain.Message, error) {
+func (r *InMemoryMessageRepository) GetMessageByID(ctx context.Context, messageID int64) (*domain.Message, apistatus.Status) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	msg, exists := r.messages[messageID]
 	if !exists {
-		return nil, errors.New("message not found")
+		return nil, apistatus.New("message not found").NotFound()
 	}
 	return msg, nil
 }

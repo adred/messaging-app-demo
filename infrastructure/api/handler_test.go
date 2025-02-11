@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"messaging-app/domain"
+	"messaging-app/pkg/apistatus"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -19,10 +19,11 @@ import (
 // dummyService is a dummy implementation of the MessageService interface for testing.
 type dummyService struct{}
 
-func (s *dummyService) SendMessage(ctx context.Context, chatID, senderID int64, content string) (*domain.Message, error) {
+// SendMessage now returns an apistatus.Status instead of error.
+func (s *dummyService) SendMessage(ctx context.Context, chatID, senderID int64, content string) (*domain.Message, apistatus.Status) {
 	// For testing, assume that only chat with ID 1 exists.
 	if chatID != 1 {
-		return nil, errors.New("chat does not exist")
+		return nil, apistatus.New("chat does not exist").NotFound()
 	}
 	return &domain.Message{
 		ID:        1,
@@ -34,8 +35,8 @@ func (s *dummyService) SendMessage(ctx context.Context, chatID, senderID int64, 
 	}, nil
 }
 
-func (s *dummyService) GetMessages(ctx context.Context, chatID int64) ([]*domain.Message, error) {
-	// Return a dummy list of two messages.
+// GetMessages returns a dummy list of messages.
+func (s *dummyService) GetMessages(ctx context.Context, chatID int64) ([]*domain.Message, apistatus.Status) {
 	return []*domain.Message{
 		{
 			ID:        1,
@@ -56,10 +57,11 @@ func (s *dummyService) GetMessages(ctx context.Context, chatID int64) ([]*domain
 	}, nil
 }
 
-func (s *dummyService) ListChatsForUser(ctx context.Context, userID int64) ([]*domain.Chat, error) {
+// ListChatsForUser returns chats for the given user.
+func (s *dummyService) ListChatsForUser(ctx context.Context, userID int64) ([]*domain.Chat, apistatus.Status) {
 	// Simulate that user with ID 999 has no chats.
 	if userID == 999 {
-		return nil, errors.New("user has no chats")
+		return nil, apistatus.New("user has no chats").NotFound()
 	}
 	return []*domain.Chat{
 		{
@@ -72,18 +74,20 @@ func (s *dummyService) ListChatsForUser(ctx context.Context, userID int64) ([]*d
 	}, nil
 }
 
-func (s *dummyService) UpdateMessageStatus(ctx context.Context, messageID int64, status domain.MessageStatus) error {
+// UpdateMessageStatus updates a message's status.
+func (s *dummyService) UpdateMessageStatus(ctx context.Context, messageID int64, status domain.MessageStatus) apistatus.Status {
 	// If the message ID is not 1, simulate that it doesn't exist.
 	if messageID != 1 {
-		return errors.New("message does not exist")
+		return apistatus.New("message does not exist").NotFound()
 	}
 	// Otherwise, simulate success.
 	return nil
 }
 
-func (s *dummyService) CreateChat(ctx context.Context, participant1ID, participant2ID int64) (*domain.Chat, error) {
+// CreateChat creates a chat if the participants are different.
+func (s *dummyService) CreateChat(ctx context.Context, participant1ID, participant2ID int64) (*domain.Chat, apistatus.Status) {
 	if participant1ID == participant2ID {
-		return nil, errors.New("participants must be different")
+		return nil, apistatus.New("participants must be different").BadRequest()
 	}
 	return &domain.Chat{
 		ID:             1,
@@ -107,9 +111,7 @@ func newChiContext(paramKey, paramValue string) *chi.Context {
 	return rctx
 }
 
-//
-// Tests for the API endpoints
-//
+// --- Tests for the API endpoints ---
 
 // TestCreateChat verifies that the CreateChat endpoint returns a valid chat.
 func TestCreateChat(t *testing.T) {
