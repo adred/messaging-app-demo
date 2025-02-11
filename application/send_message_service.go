@@ -18,6 +18,7 @@ type MessageService interface {
 	SendMessage(ctx context.Context, chatID, senderID int64, content string) (*domain.Message, error)
 	GetMessages(ctx context.Context, chatID int64) ([]*domain.Message, error)
 	ListChatsForUser(ctx context.Context, userID int64) ([]*domain.Chat, error)
+	UpdateMessageStatus(ctx context.Context, messageID int64, status domain.MessageStatus) error
 }
 
 type messageService struct {
@@ -72,4 +73,8 @@ func (s *messageService) GetMessages(ctx context.Context, chatID int64) ([]*doma
 
 func (s *messageService) ListChatsForUser(ctx context.Context, userID int64) ([]*domain.Chat, error) {
 	return s.chatRepo.GetChatsByUserID(ctx, userID)
+}
+
+func (s *messageService) UpdateMessageStatus(ctx context.Context, messageID int64, status domain.MessageStatus) error {
+	return s.messageRepo.UpdateMessageStatus(ctx, messageID, status)
 }
