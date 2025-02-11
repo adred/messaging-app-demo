@@ -69,7 +69,7 @@ These features outline how I would finish and enhance the project:
    RATE_LIMIT=100
    ```
 
-3. \*_Build and Run Containers:_
+3. **Build and Run Containers:**
 
    ```bash
    docker-compose up --build
@@ -77,13 +77,13 @@ These features outline how I would finish and enhance the project:
 
 4. **Access the Service:**
 
-   - Messaging API: http://localhost:3000
-   - RabbitMQ Management Dashboard: http://localhost:15672
-     (Default credentials: guest / guest)
+- Messaging API: http://localhost:3000
+- RabbitMQ Management Dashboard: http://localhost:15672
+  (Default credentials: guest / guest)
 
 ## API Documentation
 
-    Swagger UI / OpenAPI Spec:
+Swagger UI / OpenAPI Spec:
 
-    - OpenAPI YAML: http://localhost:3000/docs/openapi.yaml
-    - Swagger UI: http://localhost:3000/openapi/index.html
+- OpenAPI YAML: http://localhost:3000/docs/openapi.yaml
+- Swagger UI: http://localhost:3000/openapi/index.html
