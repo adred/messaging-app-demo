@@ -34,8 +34,8 @@ These features outline how I would finish the project:
 
 ### Prerequisites
 
-    - [Go 1.20+](https://golang.org/dl/)
-    - [Docker & Docker Compose](https://www.docker.com/)
+- [Go 1.20+](https://golang.org/dl/)
+- [Docker & Docker Compose](https://www.docker.com/)
 
 ### Running with Docker Compose
 
