@@ -10,6 +10,9 @@ type Config struct {
 	AuthUsername  string `envconfig:"AUTH_USERNAME"`
 	AuthPassword  string `envconfig:"AUTH_PASSWORD"`
 	RateLimit     int    `envconfig:"RATE_LIMIT"`
+	ReadTimeout   int    `envconfig:"READ_TIMEOUT"`
+	WriteTimeout  int    `envconfig:"WRITE_TIMEOUT"`
+	IdleTimeout   int    `envconfig:"IDLE_TIMEOUT"`
 }
 
 // LoadConfig processes environment variables into a Config struct.
