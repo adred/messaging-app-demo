@@ -6,6 +6,12 @@ import (
 	"github.com/streadway/amqp"
 )
 
+// RabbitMQInterface defines the methods required by the messaging service.
+type RabbitMQInterface interface {
+	PublishMessage(body []byte) error
+	Close()
+}
+
 // RabbitMQ wraps the connection, channel, and queue declaration.
 type RabbitMQ struct {
 	Connection *amqp.Connection
@@ -44,7 +50,7 @@ func NewRabbitMQ(connStr, queueName string) (*RabbitMQ, error) {
 // PublishMessage sends a message to the RabbitMQ queue.
 func (r *RabbitMQ) PublishMessage(body []byte) error {
 	err := r.Channel.Publish(
-		"",           // exchange
+		"",           // exchange (using default exchange)
 		r.Queue.Name, // routing key (queue name)
 		false,
 		false,

@@ -25,16 +25,16 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	rabbitMQ, err := ProvideRabbitMQ(configConfig)
+	messageRepository := repository.NewInMemoryMessageRepository()
+	chatRepository := repository.NewInMemoryChatRepository()
+	rabbitMQInterface, err := ProvideRabbitMQ(configConfig)
 	if err != nil {
 		return nil, err
 	}
-	messageRepository := repository.NewInMemoryMessageRepository()
-	chatRepository := repository.NewInMemoryChatRepository()
-	messageService := application.NewMessageService(rabbitMQ, messageRepository, chatRepository)
+	messageService := application.NewMessageService(messageRepository, chatRepository, rabbitMQInterface)
 	handler := api.NewHandler(messageService)
 	mux := api.NewRouter(handler)
-	app := NewApp(configConfig, mux, rabbitMQ)
+	app := NewApp(configConfig, mux, rabbitMQInterface)
 	return app, nil
 }
 
@@ -44,11 +44,11 @@ func InitializeApp() (*App, error) {
 type App struct {
 	Config   *config.Config
 	Router   http.Handler
-	RabbitMQ *mq.RabbitMQ
+	RabbitMQ mq.RabbitMQInterface
 }
 
 // NewApp is a constructor for App that requires configuration.
-func NewApp(cfg *config.Config, router http.Handler, rabbitMQ *mq.RabbitMQ) *App {
+func NewApp(cfg *config.Config, router http.Handler, rabbitMQ mq.RabbitMQInterface) *App {
 	return &App{
 		Config:   cfg,
 		Router:   router,
@@ -57,8 +57,8 @@ func NewApp(cfg *config.Config, router http.Handler, rabbitMQ *mq.RabbitMQ) *App
 }
 
 // ProvideRabbitMQ initializes the RabbitMQ connection.
-func ProvideRabbitMQ(cfg *config.Config) (*mq.RabbitMQ, error) {
-	var r *mq.RabbitMQ
+func ProvideRabbitMQ(cfg *config.Config) (mq.RabbitMQInterface, error) {
+	var r mq.RabbitMQInterface
 	var err error
 
 	for i := 0; i < 10; i++ {

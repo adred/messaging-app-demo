@@ -22,11 +22,11 @@ import (
 type App struct {
 	Config   *config.Config
 	Router   http.Handler
-	RabbitMQ *mq.RabbitMQ
+	RabbitMQ mq.RabbitMQInterface
 }
 
 // NewApp is a constructor for App that requires configuration.
-func NewApp(cfg *config.Config, router http.Handler, rabbitMQ *mq.RabbitMQ) *App {
+func NewApp(cfg *config.Config, router http.Handler, rabbitMQ mq.RabbitMQInterface) *App {
 	return &App{
 		Config:   cfg,
 		Router:   router,
@@ -35,8 +35,8 @@ func NewApp(cfg *config.Config, router http.Handler, rabbitMQ *mq.RabbitMQ) *App
 }
 
 // ProvideRabbitMQ initializes the RabbitMQ connection.
-func ProvideRabbitMQ(cfg *config.Config) (*mq.RabbitMQ, error) {
-	var r *mq.RabbitMQ
+func ProvideRabbitMQ(cfg *config.Config) (mq.RabbitMQInterface, error) {
+	var r mq.RabbitMQInterface
 	var err error
 	// Increase to 10 attempts with a 5-second delay between attempts.
 	for i := 0; i < 10; i++ {

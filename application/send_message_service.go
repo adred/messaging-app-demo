@@ -1,4 +1,3 @@
-// application/send_message_service.go
 package application
 
 import (
@@ -13,7 +12,6 @@ import (
 	"messaging-app/infrastructure/repository"
 )
 
-// MessageService defines the use-case methods.
 type MessageService interface {
 	SendMessage(ctx context.Context, chatID, senderID int64, content string) (*domain.Message, error)
 	GetMessages(ctx context.Context, chatID int64) ([]*domain.Message, error)
@@ -24,11 +22,10 @@ type MessageService interface {
 type messageService struct {
 	messageRepo repository.MessageRepository
 	chatRepo    repository.ChatRepository
-	rabbitMQ    *mq.RabbitMQ
+	rabbitMQ    mq.RabbitMQInterface
 }
 
-// NewMessageService creates a new instance of MessageService.
-func NewMessageService(rabbitMQ *mq.RabbitMQ, messageRepo repository.MessageRepository, chatRepo repository.ChatRepository) MessageService {
+func NewMessageService(messageRepo repository.MessageRepository, chatRepo repository.ChatRepository, rabbitMQ mq.RabbitMQInterface) MessageService {
 	return &messageService{
 		messageRepo: messageRepo,
 		chatRepo:    chatRepo,
@@ -41,10 +38,10 @@ func (s *messageService) SendMessage(ctx context.Context, chatID, senderID int64
 	if err != nil {
 		return nil, err
 	}
-	// Ensure the sender is a participant.
 	if chat.Participant1ID != senderID && chat.Participant2ID != senderID {
 		return nil, errors.New("sender is not a participant of the chat")
 	}
+
 	msg := &domain.Message{
 		ChatID:    chatID,
 		SenderID:  senderID,
@@ -56,14 +53,21 @@ func (s *messageService) SendMessage(ctx context.Context, chatID, senderID int64
 	if err != nil {
 		return nil, err
 	}
-	// Optionally, publish the message event asynchronously.
+
+	// Publish asynchronously.
 	go func(m *domain.Message) {
-		eventData, _ := json.Marshal(m)
-		if err := s.rabbitMQ.PublishMessage(eventData); err != nil {
-			// Log error
-			log.Printf("failed to publish message event: %v", err)
+		eventData, err := json.Marshal(m)
+		if err != nil {
+			log.Printf("failed to marshal message: %v", err)
+			return
+		}
+		if s.rabbitMQ != nil {
+			if err := s.rabbitMQ.PublishMessage(eventData); err != nil {
+				log.Printf("failed to publish message event: %v", err)
+			}
 		}
 	}(createdMsg)
+
 	return createdMsg, nil
 }
 
