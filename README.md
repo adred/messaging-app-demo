@@ -65,6 +65,12 @@ These features outline how I would finish the project:
    docker-compose up --build
    ```
 
+### Running tests
+
+```bash
+go tests ./...
+```
+
 ## Technical Choices & System Architecture
 
 ### Language & Frameworks
