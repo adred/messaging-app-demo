@@ -6,9 +6,9 @@ A simple messaging service built in Go using Domain-Driven Design principles, RE
 
 - [Features](#features)
 - [Setup Instructions](#setup-instructions)
-- [API Documentation](#api-documentation)
 - [Technical Choices & System Architecture](#technical-choices--system-architecture)
 - [Potential Improvements](#potential-improvements)
+- [API Documentation](#api-documentation)
 
 ## Features
 
@@ -52,7 +52,7 @@ These features outline how I would finish and enhance the project:
 1. **Clone the Repository:**
 
    ```bash
-   git clone https://github.com/yourusername/messaging-service.git
+   git clone https://github.com/adred/messaging-app-demo.git
    cd messaging-service
 
    ```
