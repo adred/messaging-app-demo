@@ -25,20 +25,10 @@ A simple messaging service built in Go using Domain-Driven Design principles, RE
 
 ### Additional (Planned) Features
 
-These features outline how I would finish and enhance the project:
+These features outline how I would finish the project:
 
-- **Structured Logging:**  
-  Integrate a logging library (e.g., [zap](https://github.com/uber-go/zap)) for structured and leveled logs.
-- **Tracing:**  
-  Implement distributed tracing using OpenTelemetry to track requests across microservices or internal components.
 - **File Sharing:**  
   Add support for file sharing in chats, with validation for PDF, JPEG, and PNG files.
-- **Hot Reload:**  
-  Use [air](https://github.com/cosmtrek/air) for hot reloading during development to speed up the feedback loop.
-- **Task Automation:**  
-  Utilize a `Makefile` or a tool like [Task](https://github.com/go-task/task) to automate common tasks (e.g., running Wire for dependency injection code generation, starting Air, running tests, etc.).
-- **Health Check Endpoint:**  
-  Expose a health check endpoint (e.g., `/health`) to monitor the status of the application and its dependencies.
 
 ## Setup Instructions
 
@@ -75,11 +65,65 @@ These features outline how I would finish and enhance the project:
    docker-compose up --build
    ```
 
-4. **Access the Service:**
+## Technical Choices & System Architecture
+
+### Language & Frameworks
+
+- Go (Golang):
+  Chosen for its performance, simplicity, and ease of deployment.
+
+- Chi:
+  A lightweight HTTP router that provides a simple and idiomatic way to build REST APIs.
+
+- RabbitMQ:
+  Used for asynchronous messaging to decouple message creation from downstream processing.
+
+- Google Wire:
+  Provides dependency injection, enabling a clean separation of concerns and easier testing.
+
+- In-Memory Repositories:
+  Used in this version for simplicity. In production, these would be replaced by persistent storage (e.g., MySQL or PostgreSQL).
+
+### Architecture Overview
+
+- Domain-Driven Design (DDD):
+  The project is organized into multiple layers:
+
+  - Domain: Contains core business entities (User, Chat, Message) and related logic.
+  - Application: Contains the business logic (e.g., sending messages, creating chats, updating statuses).
+  - Infrastructure: Provides integrations with external systems (API, repositories, RabbitMQ).
+  - Configuration: Manages environment configuration.
+
+- RESTful API:
+  The API exposes endpoints for creating chats, sending messages, updating message statuses, retrieving chat messages, and listing user chats.
+
+- Asynchronous Messaging:
+  RabbitMQ is used to publish events asynchronously (e.g., when a message is sent), enabling future decoupled processing such as notifications or logging.
+
+- Middleware:
+  Basic authentication and rate limiting are applied via middleware to secure and protect API endpoints.
+
+- Containerization:
+  Docker and Docker Compose ensure a consistent deployment environment across development and production.
+
+## Access the Service
 
 - Messaging API: http://localhost:3000
 - RabbitMQ Management Dashboard: http://localhost:15672
   (Default credentials: guest / guest)
+
+## Potential Improvements
+
+- **Structured Logging:**  
+  Integrate a logging library (e.g., [zap](https://github.com/uber-go/zap)) for structured and leveled logs.
+- **Tracing:**  
+  Implement distributed tracing using OpenTelemetry to track requests across microservices or internal components.
+- **Hot Reload:**  
+  Use [air](https://github.com/cosmtrek/air) for hot reloading during development to speed up the feedback loop.
+- **Task Automation:**  
+  Utilize a `Makefile` or a tool like [Task](https://github.com/go-task/task) to automate common tasks (e.g., running Wire for dependency injection code generation, starting Air, running tests, etc.).
+- **Health Check Endpoint:**  
+  Expose a health check endpoint (e.g., `/health`) to monitor the status of the application and its dependencies.
 
 ## API Documentation
 
