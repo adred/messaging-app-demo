@@ -12,9 +12,6 @@ import (
 func TestRateLimitingIntegration(t *testing.T) {
 	// Create a dummy service.
 	ds := &dummyService{}
-	// Create the API handler using the dummy service.
-	handler := NewHandler(ds)
-
 	// Create a dummy configuration with auth and rate limit settings.
 	testConfig := &config.Config{
 		AuthUsername: "red",
@@ -22,6 +19,9 @@ func TestRateLimitingIntegration(t *testing.T) {
 		RateLimit:    100,
 		HTTPPort:     "3000",
 	}
+
+	// Create the API handler using the dummy service.
+	handler := NewHandler(ds, testConfig)
 
 	// Create the router using your actual NewRouter function.
 	router := NewRouter(handler, testConfig)

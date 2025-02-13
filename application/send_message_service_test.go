@@ -43,7 +43,7 @@ func TestSendMessageAndUpdateStatus(t *testing.T) {
 	service := NewMessageService(msgRepo, chatRepo, rabbitMQ)
 
 	// Test sending a message.
-	msg, apistatus := service.SendMessage(ctx, chat.ID, 1, "Hello from test")
+	msg, apistatus := service.SendMessage(ctx, chat.ID, 1, "Hello from test", []domain.Attachment{})
 	if apistatus != nil {
 		t.Fatalf("SendMessage failed: %s", apistatus.GetMessage())
 	}
@@ -180,7 +180,7 @@ func TestCreateChatAndSendMessage(t *testing.T) {
 	}
 
 	// Send a message using the created chat.
-	msg, apistatus := service.SendMessage(ctx, chat.ID, 1, "Test message in created chat")
+	msg, apistatus := service.SendMessage(ctx, chat.ID, 1, "Test message in created chat", []domain.Attachment{})
 	if apistatus != nil {
 		t.Fatalf("SendMessage failed: %s", apistatus.GetMessage())
 	}
@@ -199,7 +199,7 @@ func TestSendMessageInvalidChat(t *testing.T) {
 	ctx := context.Background()
 
 	// Attempt to send a message to a non-existent chat (ID 999).
-	_, apistatus := service.SendMessage(ctx, 999, 1, "Test message")
+	_, apistatus := service.SendMessage(ctx, 999, 1, "Test message", []domain.Attachment{})
 	if apistatus == nil {
 		t.Error("expected error when sending message to non-existent chat, got nil")
 	} else {

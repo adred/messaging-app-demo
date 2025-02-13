@@ -33,7 +33,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	messageService := application.NewMessageService(messageRepository, chatRepository, rabbitMQInterface)
-	handler := api.NewHandler(messageService)
+	handler := api.NewHandler(messageService, configConfig)
 	mux := api.NewRouter(handler, configConfig)
 	app := NewApp(configConfig, mux, rabbitMQInterface)
 	return app, nil

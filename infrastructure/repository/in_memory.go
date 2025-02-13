@@ -90,6 +90,10 @@ func (r *InMemoryMessageRepository) CreateMessage(ctx context.Context, msg *doma
 	defer r.mu.Unlock()
 	msg.ID = r.nextID
 	r.nextID++
+	// Ensure attachments slice is non-nil.
+	if msg.Attachments == nil {
+		msg.Attachments = []domain.Attachment{}
+	}
 	r.messages[msg.ID] = msg
 	return msg, nil
 }

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"messaging-app/config"
 	"messaging-app/domain"
 	"messaging-app/pkg/apistatus"
 
@@ -20,18 +21,19 @@ import (
 type dummyService struct{}
 
 // SendMessage now returns an apistatus.Status instead of error.
-func (s *dummyService) SendMessage(ctx context.Context, chatID, senderID int64, content string) (*domain.Message, apistatus.Status) {
+func (s *dummyService) SendMessage(ctx context.Context, chatID, senderID int64, content string, att []domain.Attachment) (*domain.Message, apistatus.Status) {
 	// For testing, assume that only chat with ID 1 exists.
 	if chatID != 1 {
 		return nil, apistatus.New("chat does not exist").NotFound()
 	}
 	return &domain.Message{
-		ID:        1,
-		ChatID:    chatID,
-		SenderID:  senderID,
-		Content:   content,
-		Timestamp: time.Now().UTC(),
-		Status:    domain.MessageStatusSent,
+		ID:          1,
+		ChatID:      chatID,
+		SenderID:    senderID,
+		Content:     content,
+		Attachments: att,
+		Timestamp:   time.Now().UTC(),
+		Status:      domain.MessageStatusSent,
 	}, nil
 }
 
@@ -101,7 +103,14 @@ func (s *dummyService) CreateChat(ctx context.Context, participant1ID, participa
 // setupTestHandler creates an API handler using the dummyService.
 func setupTestHandler() *Handler {
 	svc := &dummyService{}
-	return NewHandler(svc)
+	// Create a dummy configuration with auth and rate limit settings.
+	testConfig := &config.Config{
+		AuthUsername: "red",
+		AuthPassword: "abc123",
+		RateLimit:    100,
+		HTTPPort:     "3000",
+	}
+	return NewHandler(svc, testConfig)
 }
 
 // newChiContext helps set URL parameters in the request context.

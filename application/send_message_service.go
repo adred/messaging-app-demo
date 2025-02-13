@@ -13,7 +13,7 @@ import (
 )
 
 type MessageService interface {
-	SendMessage(ctx context.Context, chatID, senderID int64, content string) (*domain.Message, apistatus.Status)
+	SendMessage(ctx context.Context, chatID, senderID int64, content string, attachments []domain.Attachment) (*domain.Message, apistatus.Status)
 	GetMessages(ctx context.Context, chatID int64) ([]*domain.Message, apistatus.Status)
 	ListChatsForUser(ctx context.Context, userID int64) ([]*domain.Chat, apistatus.Status)
 	UpdateMessageStatus(ctx context.Context, messageID int64, status domain.MessageStatus) apistatus.Status
@@ -34,7 +34,7 @@ func NewMessageService(messageRepo repository.MessageRepository, chatRepo reposi
 	}
 }
 
-func (s *messageService) SendMessage(ctx context.Context, chatID, senderID int64, content string) (*domain.Message, apistatus.Status) {
+func (s *messageService) SendMessage(ctx context.Context, chatID, senderID int64, content string, attachments []domain.Attachment) (*domain.Message, apistatus.Status) {
 	// Validate that the sender is one of the hardcoded users.
 	if !domain.IsValidUser(senderID) {
 		return nil, apistatus.New("invalid sender").UnprocessableEntity()
@@ -50,14 +50,17 @@ func (s *messageService) SendMessage(ctx context.Context, chatID, senderID int64
 	if chat.Participant1ID != senderID && chat.Participant2ID != senderID {
 		return nil, apistatus.New("sender is not a participant of the chat").UnprocessableEntity()
 	}
-
-	// Create the message.
+	// Ensure attachments slice is non-nil.
+	if attachments == nil {
+		attachments = []domain.Attachment{}
+	}
 	msg := &domain.Message{
-		ChatID:    chat.ID,
-		SenderID:  senderID,
-		Content:   content,
-		Timestamp: time.Now(),
-		Status:    domain.MessageStatusSent,
+		ChatID:      chat.ID,
+		SenderID:    senderID,
+		Content:     content,
+		Attachments: attachments,
+		Timestamp:   time.Now(),
+		Status:      domain.MessageStatusSent,
 	}
 	createdMsg, as := s.messageRepo.CreateMessage(ctx, msg)
 	if as != nil {

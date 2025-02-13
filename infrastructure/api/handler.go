@@ -1,28 +1,38 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"time"
 
 	"messaging-app/application"
+	"messaging-app/config"
 	"messaging-app/domain"
+	"messaging-app/pkg/apistatus"
 
 	"github.com/go-chi/chi/v5"
 )
 
 type Handler struct {
 	messageService application.MessageService
+	config         *config.Config
 }
 
-func NewHandler(msgService application.MessageService) *Handler {
-	return &Handler{messageService: msgService}
+func NewHandler(msgService application.MessageService, cfg *config.Config) *Handler {
+	return &Handler{messageService: msgService, config: cfg}
 }
 
 type SendMessageRequest struct {
-	ChatID   int64  `json:"chatId"`
-	SenderID int64  `json:"senderId"`
-	Content  string `json:"content"`
+	ChatID      int64               `json:"chatId"`
+	SenderID    int64               `json:"senderId"`
+	Content     string              `json:"content"`
+	Attachments []domain.Attachment `json:"attachments,omitempty"`
 }
 
 // CreateChatRequest defines the payload to create a chat.
@@ -36,14 +46,103 @@ type UpdateStatusRequest struct {
 	Status string `json:"status"`
 }
 
+// processAttachment extracts an attachment from the provided file reader and saves the file to disk.
+// It returns a domain.Attachment containing file metadata.
+func (h *Handler) processAttachment(file io.Reader, originalFilename, contentType string) (domain.Attachment, error) {
+	allowedTypes := map[string]bool{
+		"application/pdf": true,
+		"image/jpeg":      true,
+		"image/png":       true,
+	}
+	if !allowedTypes[contentType] {
+		return domain.Attachment{}, errors.New("invalid file type")
+	}
+	uploadsDir := "./uploads"
+	if err := os.MkdirAll(uploadsDir, os.ModePerm); err != nil {
+		return domain.Attachment{}, err
+	}
+	uniqueName := strconv.FormatInt(time.Now().UnixNano(), 10) + "_" + originalFilename
+	dstPath := filepath.Join(uploadsDir, uniqueName)
+	dst, err := os.Create(dstPath)
+	if err != nil {
+		return domain.Attachment{}, err
+	}
+	defer dst.Close()
+	if _, err := io.Copy(dst, file); err != nil {
+		return domain.Attachment{}, err
+	}
+	stat, err := dst.Stat()
+	if err != nil {
+		return domain.Attachment{}, err
+	}
+	att := domain.Attachment{
+		FileURL:  "http://localhost:" + h.config.HTTPPort + "/uploads/" + uniqueName,
+		FileName: originalFilename,
+		MimeType: contentType,
+		Size:     stat.Size(),
+	}
+	return att, nil
+}
+
 // SendMessage handles POST /messages.
+// It accepts both JSON and multipart/form-data payloads.
+// When using multipart/form-data, it extracts attachments and passes them to the service.
 func (h *Handler) SendMessage(w http.ResponseWriter, r *http.Request) {
+	// Create a context with a 5-second timeout.
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	contentType := r.Header.Get("Content-Type")
 	var req SendMessageRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if contentType == "application/json" {
+		// Decode JSON payload.
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			as := apistatus.New(err).BadRequest()
+			http.Error(w, as.GetMessage(), as.GetStatus())
+			return
+		}
+	} else if contentType == "multipart/form-data" {
+		// Decode multipart/form-data payload.
+		chatIDStr := r.FormValue("chatId")
+		senderIDStr := r.FormValue("senderId")
+		req.Content = r.FormValue("content")
+		var err error
+		req.ChatID, err = strconv.ParseInt(chatIDStr, 10, 64)
+		if err != nil {
+			as := apistatus.New("invalid chatId").BadRequest()
+			http.Error(w, as.GetMessage(), as.GetStatus())
+			return
+		}
+		req.SenderID, err = strconv.ParseInt(senderIDStr, 10, 64)
+		if err != nil {
+			as := apistatus.New("invalid senderId").BadRequest()
+			http.Error(w, as.GetMessage(), as.GetStatus())
+			return
+		}
+		// Process attachments.
+		files := r.MultipartForm.File["files"]
+		for _, fh := range files {
+			file, err := fh.Open()
+			if err != nil {
+				as := apistatus.New("failed to open file").InternalServerError()
+				http.Error(w, as.GetMessage(), as.GetStatus())
+				return
+			}
+			att, err := h.processAttachment(file, fh.Filename, fh.Header.Get("Content-Type"))
+			file.Close()
+			if err != nil {
+				as := apistatus.New(err).InternalServerError()
+				http.Error(w, as.GetMessage(), as.GetStatus())
+				return
+			}
+			req.Attachments = append(req.Attachments, att)
+		}
+	} else {
+		as := apistatus.New("unsupported content type").BadRequest()
+		http.Error(w, as.GetMessage(), as.GetStatus())
 		return
 	}
-	msg, apistatus := h.messageService.SendMessage(r.Context(), req.ChatID, req.SenderID, req.Content)
+	msg, apistatus := h.messageService.SendMessage(ctx, req.ChatID, req.SenderID, req.Content, req.Attachments)
 	if apistatus != nil {
 		http.Error(w, apistatus.GetMessage(), apistatus.GetStatus())
 		return
