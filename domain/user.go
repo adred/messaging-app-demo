@@ -7,6 +7,7 @@ type User struct {
 }
 
 // HardcodedUsers holds the four recipients.
+// This should be replaced with a database lookup.
 var HardcodedUsers = []User{
 	{ID: 1, Name: "Red"},
 	{ID: 2, Name: "Jrue"},
@@ -15,6 +16,7 @@ var HardcodedUsers = []User{
 }
 
 // IsValidUser returns true if the provided userID is found in HardcodedUsers.
+// This should be replaced with a database lookup.
 func IsValidUser(userID int64) bool {
 	for _, u := range HardcodedUsers {
 		if u.ID == userID {
