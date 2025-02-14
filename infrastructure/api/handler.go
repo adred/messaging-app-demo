@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"messaging-app/application"
@@ -101,7 +102,8 @@ func (h *Handler) SendMessage(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, as.GetMessage(), as.GetStatus())
 			return
 		}
-	} else if contentType == "multipart/form-data" {
+	} else if len(contentType) >= len("multipart/form-data") &&
+		strings.HasPrefix(contentType, "multipart/form-data") {
 		// Decode multipart/form-data payload.
 		chatIDStr := r.FormValue("chatId")
 		senderIDStr := r.FormValue("senderId")

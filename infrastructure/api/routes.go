@@ -31,5 +31,9 @@ func NewRouter(handler *Handler, conf *config.Config) *chi.Mux {
 	fs := http.StripPrefix("/openapi/", http.FileServer(http.Dir("./static/swaggerui")))
 	r.Get("/openapi/*", fs.ServeHTTP)
 
+	// Serve uploaded files
+	r.Get("/uploads/{filename}", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./uploads/"+chi.URLParam(r, "filename"))
+	})
 	return r
 }

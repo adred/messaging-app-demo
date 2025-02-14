@@ -27,13 +27,34 @@ paths:
   /messages:
     post:
       summary: Send a message
-      description: Send a message to an existing chat. Returns an error if the chat does not exist.
+      description: >
+        Send a message to an existing chat. The request can be sent as either JSON or multipart/form-data.
+        When using multipart/form-data, file attachments (PDF, JPEG, or PNG) can be provided via the `files` field.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/SendMessageRequest"
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                chatId:
+                  type: integer
+                senderId:
+                  type: integer
+                content:
+                  type: string
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+              required:
+                - chatId
+                - senderId
+                - content
       responses:
         "200":
           description: Message sent successfully
@@ -127,6 +148,10 @@ components:
           type: integer
         content:
           type: string
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Attachment"
       required:
         - chatId
         - senderId
@@ -142,6 +167,10 @@ components:
           type: integer
         content:
           type: string
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Attachment"
         timestamp:
           type: string
           format: date-time
@@ -157,6 +186,7 @@ components:
         - chatId
         - senderId
         - content
+        - attachments
         - timestamp
         - status
     UpdateStatusRequest:
@@ -190,3 +220,20 @@ components:
         - participant1Id
         - participant2Id
         - createdAt
+    Attachment:
+      type: object
+      properties:
+        id:
+          type: integer
+        fileUrl:
+          type: string
+        fileName:
+          type: string
+        mimeType:
+          type: string
+        size:
+          type: integer
+      required:
+        - fileUrl
+        - fileName
+        - mimeType
