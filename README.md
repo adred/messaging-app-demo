@@ -1,6 +1,6 @@
 # Messaging Service
 
-A simple messaging service built in Go using Domain-Driven Design principles, RESTful APIs, and RabbitMQ for asynchronous messaging. This project was designed as an assessment and includes core features such as sending messages, retrieving message history, tracking message status, and managing private chats between hardcoded users.
+A simple messaging service built in Go using Domain-Driven Design principles, RESTful APIs, and RabbitMQ for asynchronous messaging. This project includes core features such as sending messages, retrieving message history, tracking message status, and managing private chats between hardcoded users.
 
 ## Table of Contents
 
