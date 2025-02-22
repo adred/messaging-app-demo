@@ -28,7 +28,6 @@ func TestSendMessageAndUpdateStatus(t *testing.T) {
 
 	ctx := context.Background()
 	// Create a new chat so that SendMessage can succeed.
-	// (Note: repository.CreateChat returns a standard error, so no changes are needed here.)
 	chat, apistatus := chatRepo.CreateChat(ctx, &domain.Chat{
 		Participant1ID: 1,
 		Participant2ID: 2,

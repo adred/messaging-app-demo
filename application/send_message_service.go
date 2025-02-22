@@ -108,7 +108,8 @@ func (s *messageService) UpdateMessageStatus(ctx context.Context, messageID int6
 		return apistatus.New("invalid message status").UnprocessableEntity()
 	}
 	// Enforce allowed transitions.
-	if !msg.CanTransitionTo(status) {
+	rules := domain.DefaultTransitionRules()
+	if !msg.CanTransitionTo(status, rules) {
 		return apistatus.New("invalid status transition").UnprocessableEntity()
 	}
 	// Publish asynchronously.

@@ -24,6 +24,21 @@ func (ms MessageStatus) IsValid() bool {
 	return false
 }
 
+// TransitionRules defines valid status transitions (immutable configuration).
+type TransitionRules struct {
+	rules map[MessageStatus][]MessageStatus
+}
+
+// DefaultTransitionRules provides the standard transition configuration.
+func DefaultTransitionRules() TransitionRules {
+	return TransitionRules{
+		rules: map[MessageStatus][]MessageStatus{
+			MessageStatusSent:      {MessageStatusDelivered, MessageStatusFailed},
+			MessageStatusDelivered: {MessageStatusRead},
+		},
+	}
+}
+
 // Attachment holds metadata for a file attached to a message.
 type Attachment struct {
 	ID       int64  `json:"id,omitempty"`
@@ -33,7 +48,7 @@ type Attachment struct {
 	Size     int64  `json:"size"`
 }
 
-// Message represents a chat message.
+// Message represents an immutable chat message.
 type Message struct {
 	ID          int64         `json:"id"`
 	ChatID      int64         `json:"chatId"`
@@ -44,16 +59,7 @@ type Message struct {
 	Status      MessageStatus `json:"status"`
 }
 
-// AllowedTransitions defines the valid status transitions.
-var AllowedTransitions = map[MessageStatus][]MessageStatus{
-	MessageStatusSent:      {MessageStatusDelivered, MessageStatusFailed},
-	MessageStatusDelivered: {MessageStatusRead},
-	// Once a message is "read" or "failed", no transitions are allowed.
-}
-
-// NewMessage creates a new Message instance and enforces invariants:
-// - The sender must be valid (using IsValidUser).
-// - The sender must be a participant of the provided chat.
+// NewMessage creates a new Message instance with validation.
 func NewMessage(chat *Chat, senderID int64, content string, attachments []Attachment) (*Message, error) {
 	if !IsValidUser(senderID) {
 		return nil, errors.New("invalid sender")
@@ -61,10 +67,10 @@ func NewMessage(chat *Chat, senderID int64, content string, attachments []Attach
 	if chat.Participant1ID != senderID && chat.Participant2ID != senderID {
 		return nil, errors.New("sender is not a participant of the chat")
 	}
-	// Ensure attachments is never nil.
 	if attachments == nil {
 		attachments = []Attachment{}
 	}
+
 	return &Message{
 		ChatID:      chat.ID,
 		SenderID:    senderID,
@@ -75,17 +81,36 @@ func NewMessage(chat *Chat, senderID int64, content string, attachments []Attach
 	}, nil
 }
 
-// CanTransitionTo returns true if the message can transition from its current status to newStatus.
-func (m *Message) CanTransitionTo(newStatus MessageStatus) bool {
-	allowed, ok := AllowedTransitions[m.Status]
+// CanTransitionTo is a pure function that checks status transitions.
+// Uses value receiver and explicit transition rules parameter.
+func (m Message) CanTransitionTo(newStatus MessageStatus, rules TransitionRules) bool {
+	allowed, ok := rules.rules[m.Status]
 	if !ok {
-		// If there's no allowed transition from current status, disallow any change.
 		return false
 	}
+
 	for _, s := range allowed {
 		if s == newStatus {
 			return true
 		}
 	}
 	return false
+}
+
+// WithStatus creates a new Message instance with updated status.
+// Preserves immutability by returning a new copy.
+func (m Message) WithStatus(newStatus MessageStatus, rules TransitionRules) (Message, error) {
+	if !m.CanTransitionTo(newStatus, rules) {
+		return Message{}, errors.New("invalid status transition")
+	}
+
+	return Message{
+		ID:          m.ID,
+		ChatID:      m.ChatID,
+		SenderID:    m.SenderID,
+		Content:     m.Content,
+		Attachments: m.Attachments,
+		Timestamp:   m.Timestamp,
+		Status:      newStatus,
+	}, nil
 }

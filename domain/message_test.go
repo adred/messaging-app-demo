@@ -72,35 +72,36 @@ func TestCanTransitionTo(t *testing.T) {
 		Timestamp: time.Now(),
 		Status:    MessageStatusSent,
 	}
+	rules := DefaultTransitionRules()
 	// From "sent", allowed transitions are "delivered" or "failed".
-	if !msg.CanTransitionTo(MessageStatusDelivered) {
+	if !msg.CanTransitionTo(MessageStatusDelivered, rules) {
 		t.Errorf("expected transition from sent to delivered to be allowed")
 	}
-	if !msg.CanTransitionTo(MessageStatusFailed) {
+	if !msg.CanTransitionTo(MessageStatusFailed, rules) {
 		t.Errorf("expected transition from sent to failed to be allowed")
 	}
-	if msg.CanTransitionTo(MessageStatusRead) {
+	if msg.CanTransitionTo(MessageStatusRead, rules) {
 		t.Errorf("expected transition from sent to read to be disallowed")
 	}
 
 	// Change status to "delivered" and test.
 	msg.Status = MessageStatusDelivered
-	if !msg.CanTransitionTo(MessageStatusRead) {
+	if !msg.CanTransitionTo(MessageStatusRead, rules) {
 		t.Errorf("expected transition from delivered to read to be allowed")
 	}
-	if msg.CanTransitionTo(MessageStatusSent) {
+	if msg.CanTransitionTo(MessageStatusSent, rules) {
 		t.Errorf("expected transition from delivered to sent to be disallowed")
 	}
 
 	// Once status is "read", no transitions are allowed.
 	msg.Status = MessageStatusRead
-	if msg.CanTransitionTo(MessageStatusDelivered) || msg.CanTransitionTo(MessageStatusFailed) {
+	if msg.CanTransitionTo(MessageStatusDelivered, rules) || msg.CanTransitionTo(MessageStatusFailed, rules) {
 		t.Errorf("expected no transitions allowed from read state")
 	}
 
 	// Similarly for "failed".
 	msg.Status = MessageStatusFailed
-	if msg.CanTransitionTo(MessageStatusDelivered) || msg.CanTransitionTo(MessageStatusRead) {
+	if msg.CanTransitionTo(MessageStatusDelivered, rules) || msg.CanTransitionTo(MessageStatusRead, rules) {
 		t.Errorf("expected no transitions allowed from failed state")
 	}
 }
